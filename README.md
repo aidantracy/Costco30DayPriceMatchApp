@@ -1,0 +1,45 @@
+# Costco 30-Day Price Match App
+
+A tracker that watches the 30-day price adjustment window on Costco purchases and alerts you when an item you bought drops in price, so you can claim the difference.
+
+> **Status:** Planning phase. No application code yet. See the [project charter](docs/project-charter.md).
+
+## Why
+
+Costco refunds the difference when an item's price drops within 30 days of purchase, but only if you notice. Catching a drop today means remembering every purchase and checking sale prices by hand. This app does the watching for you.
+
+## Planned MVP
+
+- **Automatic import of online orders** from forwarded Costco.com order confirmation emails
+- **One-tap import of warehouse receipts** by sharing the receipt PDF from the Costco app
+- **Countdown** of days left in each item's adjustment window
+- **Price-drop alerts** when a current price falls below what you paid
+- **Claim card** with the details the membership counter asks for
+- **Savings log** of claims made and dollars recovered
+
+The app never logs into your Costco account or stores Costco credentials. The [charter](docs/project-charter.md#data-sources-and-feasibility) explains why.
+
+## Approach
+
+This project follows the full software development lifecycle, with each phase producing a documented deliverable:
+
+| Phase | Deliverable | Status |
+| --- | --- | --- |
+| 1. Planning | [Project charter](docs/project-charter.md) | In progress |
+| 2. Requirements | User stories, MVP spec | Not started |
+| 3. Design | Architecture, data model, threat model | Not started |
+| 4. Implementation | MVP features | Not started |
+| 5. Testing | Unit and integration tests, test plan | Not started |
+| 6. Deployment | Hosting, CI/CD, live demo | Not started |
+| 7. Maintenance | Monitoring, feedback, backlog | Not started |
+
+## Security and privacy principles
+
+- No storage of Costco credentials or payment card numbers
+- Every record scoped to its owner; least-privilege access
+- Secrets in environment configuration, never in source control
+- Test fixtures use fake data only
+
+## Disclaimer
+
+This is an independent project. It is not affiliated with, sponsored by, or endorsed by Costco Wholesale Corporation. Price adjustments are granted at Costco's discretion under its current policy.
