@@ -1,6 +1,6 @@
 # Costco Price Match App — Project Charter
 
-**Status:** Draft · **Phase:** Planning · **Last updated:** Oct 8, 2026
+**Status:** Draft · **Phase:** Planning · **Last updated:** Oct 20, 2026
 
 ## Problem statement
 
@@ -11,6 +11,8 @@ The app removes that manual work: it records purchases, watches the adjustment w
 ## Vision and product strategy
 
 Ship a personal tool first, but build it on a multi-user foundation so other members can sign up later without a rewrite.
+
+The product is a phone app for iOS and Android, built from one cross-platform codebase. A small backend API sits behind it to receive forwarded order emails, run the alert schedule, and send notifications.
 
 - **Phase 1 (personal):** one real user (the developer), real receipts, real alerts. This proves the core loop works.
 - **Phase 2 (multi-user):** open sign-up to other members, add shared price reports, and harden security and privacy.
@@ -27,7 +29,7 @@ The project succeeds when it recovers real money with less effort than checking 
 | Low effort | Time to log one receipt | Under 2 minutes |
 | Trustworthy alerts | Share of alerts that turn out claimable at the warehouse | At least 90% |
 | No missed windows | Purchases whose window closes without a price check | 0 |
-| Resume-ready | Public repo with README, tests, CI and deployed demo | Done by end of Phase 1 |
+| Resume-ready | Public repo with README, tests, CI, a deployed backend, and installable iOS and Android test builds | Done by end of Phase 1 |
 
 ## Target users and stakeholders
 
@@ -53,7 +55,9 @@ The MVP imports purchases with as little effort as Costco's data allows: automat
 | Receipt photo with OCR for paper receipts |  | Yes |  |
 | Countdown of days left per item's window | Yes |  |  |
 | Manual entry of current sale price | Yes |  |  |
-| Alert when current price is below price paid | Yes (email) | Push notifications |  |
+| Alert when current price is below price paid | Yes (push notification, with email as fallback) |  |  |
+| iOS and Android app installed through TestFlight and Google Play internal testing | Yes |  |  |
+| Public listing in the App Store and Google Play |  | Yes |  |
 | "Claim card" with the details staff ask for | Yes |  |  |
 | Log of claims made and dollars recovered | Yes |  |  |
 | User accounts and authentication | Yes (single account) | Open sign-up |  |
@@ -114,6 +118,8 @@ The biggest risk is price data: without a reliable, permitted source, alerts dep
 | Costco changes the policy | Medium | Medium | Rules in config; review policy each quarter |
 | OCR misreads item numbers or prices (Phase 2) | High | Medium | User confirms every OCR field before saving |
 | Using the Costco name or logo implies endorsement | Medium | Medium | Generic app name; disclaimer that it's unaffiliated |
+| App store review rejects the app or its use of the Costco name | Medium | Medium | Phase 1 ships through test tracks only; generic name, no Costco logo, accurate privacy labels before any public listing |
+| Purchase details appear in lock-screen notifications | Medium | Low | Notifications carry only the item and the amount saved; details load after the app opens |
 | Scope creep delays a usable MVP | Medium | Medium | Hold the MVP list; new ideas go to a Phase 2 backlog |
 
 ## Assumptions and constraints
@@ -127,9 +133,9 @@ The biggest risk is price data: without a reliable, permitted source, alerts dep
 **Constraints**
 
 - Part-time build alongside a full-time job; scope sized to evenings and weekends.
-- Low or zero hosting cost during Phase 1.
+- Low or zero hosting cost during Phase 1, plus app store developer account fees.
 - No storage of payment card numbers or Costco account credentials.
-- Tech stack is decided in the Design phase; Python is the likely backend language.
+- The product is an iOS and Android app from one cross-platform codebase, plus a backend API. The mobile framework and stack are decided in the Design phase; Python is the likely backend language.
 
 ## Milestones
 
@@ -141,7 +147,7 @@ flowchart LR
     P2 --> P3["3 Design<br/>Architecture, data model, threats"]
     P3 --> P4["4 Implementation<br/>Repo, MVP features"]
     P4 --> P5["5 Testing<br/>Unit + integration tests"]
-    P5 --> G1{"Gate: MVP<br/>tests pass"} --> P6["6 Deployment<br/>Hosting, CI/CD, live demo"]
+    P5 --> G1{"Gate: MVP<br/>tests pass"} --> P6["6 Deployment<br/>Backend hosting, CI/CD, iOS and Android test builds"]
     P6 --> P7["7 Maintenance<br/>Monitoring, feedback"]
     P7 --> G2{"Gate: Phase 1<br/>goals met"} --> PH2["Phase 2: multi-user<br/>Open sign-up, community prices"]
     classDef now fill:#dbeafe,stroke:#2563eb,stroke-width:2px

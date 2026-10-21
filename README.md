@@ -10,10 +10,12 @@ Costco refunds the difference when an item's price drops within 30 days of purch
 
 ## Planned MVP
 
+An iOS and Android phone app, backed by a small server API.
+
 - **Automatic import of online orders** from forwarded Costco.com order confirmation emails
 - **One-tap import of warehouse receipts** by sharing the receipt PDF from the Costco app
 - **Countdown** of days left in each item's adjustment window
-- **Price-drop alerts** when a current price falls below what you paid
+- **Price-drop push notifications** when a current price falls below what you paid, with email as a fallback
 - **Claim card** with the details the membership counter asks for
 - **Savings log** of claims made and dollars recovered
 
@@ -30,7 +32,7 @@ This project follows the full software development lifecycle, with each phase pr
 | 3. Design | Architecture, data model, threat model | Not started |
 | 4. Implementation | MVP features | Not started |
 | 5. Testing | Unit and integration tests, test plan | Not started |
-| 6. Deployment | Hosting, CI/CD, live demo | Not started |
+| 6. Deployment | Backend hosting, CI/CD, iOS and Android test builds | Not started |
 | 7. Maintenance | Monitoring, feedback, backlog | Not started |
 
 ## Security and privacy principles
