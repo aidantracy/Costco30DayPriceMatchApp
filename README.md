@@ -12,14 +12,15 @@ Costco refunds the difference when an item's price drops within 30 days of purch
 
 An iOS and Android phone app, backed by a small server API.
 
-- **Automatic import of online orders** from forwarded Costco.com order confirmation emails
-- **One-tap import of warehouse receipts** by sharing the receipt PDF from the Costco app
+- **Automatic receipt sync** of online and warehouse purchases from your Costco account, after a one-time sign-in on your phone
+- **Automatic price checks** for everything still in its adjustment window
+- **Fallbacks you control:** share a receipt PDF from the Costco app, or enter purchases and prices by hand
 - **Countdown** of days left in each item's adjustment window
-- **Price-drop push notifications** when a current price falls below what you paid, with email as a fallback
+- **Price-drop alerts** in the app and as a push notification banner when a current price falls below what you paid, with email as a fallback
 - **Claim card** with the details the membership counter asks for
 - **Savings log** of claims made and dollars recovered
 
-The app never logs into your Costco account or stores Costco credentials. The [charter](docs/project-charter.md#data-sources-and-feasibility) explains why.
+Your Costco password is never stored and never leaves your phone; the app keeps only the signed-in session, in the phone's secure storage. The [charter](docs/project-charter.md#data-sources-and-feasibility) explains the approach and its fallbacks.
 
 ## Approach
 
@@ -37,7 +38,7 @@ This project follows the full software development lifecycle, with each phase pr
 
 ## Security and privacy principles
 
-- No storage of Costco credentials or payment card numbers
+- No storage of Costco passwords or payment card numbers; the Costco session stays on the phone
 - Every record scoped to its owner; least-privilege access
 - Secrets in environment configuration, never in source control
 - Test fixtures use fake data only
