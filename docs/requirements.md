@@ -1,10 +1,10 @@
 # Costco Price Match App — Requirements Specification
 
-**Status:** Draft for review · **Phase:** 2, Requirements · **Last updated:** Oct 20, 2026
+**Status:** Draft for review · **Phase:** 2, Requirements · **Last updated:** Oct 21, 2026
 
 ## 1. Overview
 
-This document turns the [project charter](project-charter.md) into testable requirements for the Phase 1 MVP: a single-user iOS and Android phone app, backed by a small server API, that syncs the owner's Costco receipts from their own account, checks current prices for every item still in its 30-day price adjustment window, and alerts the owner in the app and with a notification banner when a claim is possible. Sharing a receipt PDF and manual entry remain available as fallbacks. The charter is the source of truth for scope. Every story, functional requirement (FR) and non-functional requirement (NFR) below traces to a charter scope item, goal, business rule or risk (see the [traceability matrix](#8-traceability-matrix)), and nothing here adds scope the charter marks as Phase 2 or out of scope. Where a requirement seems to need a charter change, it is recorded as an [open question](#9-open-questions) instead.
+This document turns the [project charter](project-charter.md) into testable requirements for the Phase 1 MVP: a single-user iOS and Android phone app, backed by a small server API, that syncs the owner's Costco receipts from their own account, checks current prices for every item still in its 30-day price adjustment window, and alerts the owner in the app and with a notification banner when a claim is possible. Sharing a receipt PDF and manual entry remain available as fallbacks. Because Costco's Site Terms prohibit automated access without written consent, the automated features are limited to the owner's own account for personal use (see OQ-02). The charter is the source of truth for scope. Every story, functional requirement (FR) and non-functional requirement (NFR) below traces to a charter scope item, goal, business rule or risk (see the [traceability matrix](#8-traceability-matrix)), and nothing here adds scope the charter marks as Phase 2 or out of scope. Where a requirement seems to need a charter change, it is recorded as an [open question](#9-open-questions) instead.
 
 **Conventions**
 
@@ -142,6 +142,7 @@ As the Owner, I want a single list of everything still in its window, sorted by 
 As the Owner, I want the app to check Costco's current price for everything I bought that's still in its window, so that I never have to look for sales myself.
 
 - **Given** an open, non-excluded purchase, **when** the scheduled price check runs, **then** the current Costco price for that item in the purchase's channel is checked at least once every 24 hours, and the result is saved to the item's price history with the source `automatic` and the time checked.
+- **Given** a `warehouse` purchase, **when** it is checked, **then** the price comes from the Warehouse Savings listing for the Owner's warehouse (see OQ-05).
 - **Given** a checked price lower than the unit price paid, **when** it is saved, **then** the purchase is flagged and an alert is triggered (US-ALR-01), including the sale end date when the page shows one (BR-5).
 - **Given** an item whose price can't be found for its channel (for example a warehouse-only price, see OQ-05), **when** the check runs, **then** the item is marked "not checked automatically" on its detail screen, and the Owner can still enter a price by hand (US-PRC-02).
 - **Given** a price check, **then** it compares only Costco's own price for the same item (BR-2) and never bypasses a bot check or verification challenge; if one appears, the check stops and the health alert in US-ALR-03 is raised.
@@ -240,6 +241,7 @@ As the Owner, I want every record tied to my account, so that other members can 
 
 - **Given** any stored purchase, price check, alert, claim or import, **then** it carries the owning user's ID, except shared reference data such as the exclusions list and public product prices.
 - **Given** two accounts created in a test, **when** account A requests any record belonging to B by ID, **then** the app responds as if the record doesn't exist.
+- **Given** a new account is created, **then** automated sync and price checks are off for it until enabled in server configuration (FR-31).
 
 #### US-ACC-03 · Disconnect my Costco account · Must
 
@@ -282,6 +284,7 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | FR-28 | Store the owning user ID on every user record and filter every read and write by the signed-in user's ID. | US-ACC-02 |
 | FR-29 | Register the phone for push notifications after the Owner grants permission, and remove the registration on sign-out. | US-ALR-01, US-ACC-01 |
 | FR-30 | On sign-out, delete app session tokens, the Costco session and cached purchase data from the phone, and revoke the app session on the server. | US-ACC-01 |
+| FR-31 | Let automated sources (sync and automatic price checks) be switched on or off per account in server configuration, with every new account starting with them off. | US-IMP-01, US-ACC-02 |
 
 ## 5. Non-functional requirements
 
@@ -307,7 +310,7 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | NFR-18 | Reliability | Every open, non-excluded purchase is price-checked at least once every 24 hours, and price-drop alerts are handed to the push service (or email) within 15 minutes of the drop being recorded. | Job logs reviewed in Testing; alert latency measured. | Charter goal "No missed windows"; BR-5 |
 | NFR-19 | Reliability | A broken sync or price check (expired session, repeated failures, bot check) is detected and reported to the Owner within 24 hours. | Fault-injection tests for each failure type. | Risk "Costco changes its site or blocks automated access" |
 | NFR-20 | Reliability | The database is backed up daily, and a restore is tested once before the end of Phase 1. | Backup schedule in Design; restore drill recorded. | Charter goal "Recover money" |
-| NFR-21 | Compliance | Automated access to Costco stays at personal-use volumes: by default no more than one account sync per hour and one price check per item per day, with backoff after errors. The app never solves, bypasses or works around bot checks or verification challenges; it stops and alerts the Owner instead. | Rate limits enforced in code and covered by tests; challenge-handling test. | Risk "Automated access conflicts with Costco's terms of use" |
+| NFR-21 | Compliance | Automated sync and price checks run only for the Owner's own account, for personal use (OQ-02), and stay at personal-use volumes: by default no more than one account sync per hour and one price check per item per day, with backoff after errors. The app never solves, bypasses or works around bot checks or verification challenges; it stops and alerts the Owner instead. | Rate limits enforced in code and covered by tests; challenge-handling test. | Risk "Automated access conflicts with Costco's terms of use" |
 | NFR-22 | Maintainability | Business rules and limits (window length, exclusions list, reminder lead time, failure threshold, sync and price-check rates) are configuration, not code. | Changing each value changes behavior with no code change (test). | BR-6, BR-7 |
 | NFR-23 | Maintainability | Parsers for account pages, receipt PDFs and product pages are versioned. Each version has fixture tests with fake data, and every import and price check records the parser version used. | Parser test suite runs in CI; version stored on each record. | Risk "Costco changes its site or blocks automated access" |
 | NFR-24 | Maintainability | Business-rule logic (windows, comparisons, claim amounts, status changes) is separate from the UI and has at least 90% branch coverage. | Coverage report in CI. | Charter vision ("business rules out of the UI") |
@@ -358,6 +361,7 @@ Phase 1 ships when all 20 Must-have stories pass their acceptance criteria and e
 - Receipt photo import with OCR for paper receipts
 - Import prompts triggered by a linked card transaction feed (investigation only)
 - Open sign-up and multiple accounts
+- Automated sync and price checks for any account other than the owner's (only with Costco's written permission, see OQ-13)
 - Community-reported sale prices
 - Importing prices from the monthly savings book (investigation only)
 - Public listing in the App Store and Google Play
@@ -393,7 +397,7 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | Constraint: no card numbers or Costco passwords stored | — | — | NFR-01, NFR-03 |
 | Constraint: low or zero hosting cost | — | — | NFR-28 |
 | Risk: Costco changes its site or blocks automated access | US-IMP-03, US-IMP-04, US-IMP-06, US-PRC-02, US-ALR-03 | FR-06, FR-07, FR-09, FR-10, FR-17, FR-21 | NFR-15, NFR-19, NFR-23, NFR-25 |
-| Risk: automated access conflicts with Costco's terms of use | US-PRC-01, US-ALR-03 | FR-21 | NFR-21 (and OQ-02) |
+| Risk: automated access conflicts with Costco's terms of use | US-IMP-01, US-PRC-01, US-ALR-03, US-ACC-02 | FR-21, FR-31 | NFR-21 (decision in OQ-02) |
 | Risk: automatic price checks miss warehouse-only prices | US-PRC-01, US-PRC-02, US-ALR-02 | FR-16, FR-17, FR-20 | NFR-25 (and OQ-05) |
 | Risk: the Costco session on the phone is stolen or misused | US-IMP-01, US-ACC-01, US-ACC-03 | FR-01, FR-02, FR-30 | NFR-01, NFR-02, NFR-08 |
 | Risk: spoofed or malicious PDFs | US-IMP-03, US-IMP-06 | FR-06, FR-09 | NFR-05 |
@@ -408,10 +412,10 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | ID | Question | Owner | Blocks | Notes |
 | --- | --- | --- | --- | --- |
 | OQ-01 | Do the charter's rules BR-1 to BR-8 match Costco's official price adjustment policy? | Project owner | Design | See findings below. The official page couldn't be read automatically, so it needs a manual check. |
-| OQ-02 | Do Costco's terms of use allow a member's own app to read their order history and Costco's product pages automatically, and does that change for multiple users or a paid product? | Project owner | Design; again before Phase 2 sign-up or monetization | Read the current terms of use on costco.com and record the relevant clauses. Consider legal advice before opening sign-up or charging. NFR-21 keeps Phase 1 at personal-use volumes in the meantime. |
-| OQ-03 | What is the exact structure of the Costco account's order and warehouse receipt pages, the receipt PDF, and a product page, including the fields that identify a receipt uniquely? | Project owner | Design (parser design and duplicate key) | Inspect real examples locally. **Never commit real pages, receipts or screenshots.** Build invented fixtures with the same structure. |
+| OQ-02 | Do Costco's terms of use allow a member's own app to read their order history and Costco's product pages automatically, and does that change for multiple users or a paid product? | Project owner | **Resolved Oct 21, 2026** | No. The Site Terms prohibit it without written consent (findings below). Decision: automation for the owner's own account and personal use only. Recheck the terms at the start of each phase. |
+| OQ-03 | What is the exact structure of the Costco account's order and warehouse receipt pages, the receipt PDF, and a product page, including the fields that identify a receipt uniquely? | Project owner | Design (parser design and duplicate key) | In the Costco app, receipts are under Account → Orders & Purchases → Warehouse tab (online orders on the neighboring tab); confirm the equivalent pages on costco.com, which the in-app browser uses. Inspect real examples locally. **Never commit real pages, receipts or screenshots.** Build invented fixtures with the same structure. |
 | OQ-04 | Is day 30 itself eligible (inclusive counting), and whose time zone defines "today" for the warehouse channel? | Project owner | Design | Affects FR-12 and the countdown. Confirm at a warehouse counter or with Costco customer service. |
-| OQ-05 | Can warehouse prices be seen online, and do warehouse receipt item numbers match costco.com item numbers? | Project owner | Design | Determines how much of the warehouse channel US-PRC-01 can cover. Items it can't cover rely on US-PRC-02 and the reminder in US-ALR-02. |
+| OQ-05 | Can warehouse prices be seen online, and do warehouse receipt item numbers match costco.com item numbers? | Project owner | Design | **Partly answered Oct 21, 2026:** current warehouse deals are listed in the Costco app under Warehouse → Warehouse Savings. Still open: whether the same listing is reachable on costco.com, whether it is specific to the selected warehouse, and whether its item numbers match warehouse receipts. Items not covered rely on US-PRC-02 and the reminder in US-ALR-02. |
 | OQ-06 | Should the charter add rules for promotional quantity limits and for claiming promotional items within the promotion dates? | Project owner | Implementation of US-PRC-04 | Secondary sources quote the official policy on both points (see findings). Requires a charter revision, so it's recorded here instead. |
 | OQ-07 | What monthly cost ceiling counts as "low" for Phase 1 hosting, push, email and storage? | Project owner | Design | Needed to make NFR-28 measurable. |
 | OQ-08 | Should price checks run on the phone or on the server? | Project owner | Design | The server is more reliable on a schedule and needs no Costco session for public product pages; the phone keeps all Costco traffic on the member's own connection. Either way NFR-21 applies. |
@@ -419,6 +423,20 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | OQ-10 | Which push notification service will the backend use: Apple Push Notification service and Firebase Cloud Messaging directly, or a provider in front of both? | Project owner | Design | Must cover iOS and Android, fit NFR-28, and allow minimal payloads (NFR-14). |
 | OQ-11 | How often can each platform run a background sync, and is that enough for NFR-17? | Project owner | Design | iOS schedules background refresh at its own discretion. If background sync is too infrequent, sync on app open and the daily price check carry the load. |
 | OQ-12 | Which public sources of Costco sale prices allow reuse, and in what format? | Project owner | Phase 2 | Carried over from the charter. Could fill the warehouse gap in OQ-05 later. |
+| OQ-13 | Should Costco be asked for written permission to offer automated sync and price checks to other members, or to monetize the app? | Project owner | Phase 2 sign-up or monetization | Required by Site Terms Sections 4, 5 and 9. Without it, Phase 2 members use the fallbacks only. |
+
+### OQ-02 findings: terms of use
+
+Costco's [Site Terms](https://www.costco.com/f/-/terms-and-conditions-of-use), last updated Oct 7, 2026, reviewed Oct 21, 2026. This is a summary for planning, not legal advice.
+
+| Section | Quote or summary | Requirement impact |
+| --- | --- | --- |
+| 9, Your Conduct | Prohibits using "any data mining, robots, agents or similar data gathering or extraction methods designed to scrape or extract data from our Services" and developing or using "any applications or software that interact with our Services without our prior written consent" | Sync (US-IMP-02) and automatic price checks (US-PRC-01) conflict; limited to the owner's own account (NFR-21, FR-31) |
+| 9, Your Conduct | Prohibits attempts to "bypass or circumvent measures employed to prevent or limit access" | The app stops at any bot check or challenge (US-ALR-03, NFR-21) |
+| 4, License | A license "to make only personal use of the Services"; commercial use needs written permission | No monetization of automation without permission (OQ-13) |
+| 5, Accounts | "You may not share with or permit others to use your individual account credentials." | Other members can't sign in to Costco through this app without permission (OQ-13) |
+| 6, Trademarks | No use of Costco's trademarks without written permission | Generic app name and disclaimer (NFR-29) |
+| 16, Termination | Access can be ended "without notice and in its sole discretion" for violations | The owner accepts this risk for their own account |
 
 ### OQ-01 findings: policy check
 
