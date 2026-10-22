@@ -76,9 +76,9 @@ An item qualifies when Costco's own price for it drops within 30 days of the pur
 
 | ID | Rule | How the app applies it |
 | --- | --- | --- |
-| BR-1 | Purchases that drop in price within 30 days of the purchase date are eligible | Countdown starts at the receipt date; online orders use the order date |
+| BR-1 | Purchases that drop in price within 30 days of the purchase date are eligible; day 30 itself counts (confirmed by the owner, Oct 21, 2026) | Countdown starts at the receipt date; online orders use the order date; the last eligible day is purchase date + 30 |
 | BR-2 | Costco does not price match other businesses or retailers | Never compare against non-Costco prices |
-| BR-3 | Costco does not price match warehouse prices for Costco.com purchases, because online prices include shipping and handling | Store a channel per purchase; compare only within the same channel (whether a warehouse purchase can use a lower online price is an open question in the requirements) |
+| BR-3 | Costco does not price match warehouse prices for Costco.com purchases, because online prices include shipping and handling, and a warehouse purchase can't be matched to a lower Costco.com price either (confirmed by the owner, Oct 21, 2026) | Store a channel per purchase; compare only within the same channel |
 | BR-4 | Costco.com purchases are claimed with the "Request a Price Match" form on Costco's customer service site; warehouse purchases at the Returns counter of the warehouse where the item was bought | Claim card shows the right path per channel, including the purchase warehouse |
 | BR-5 | For items with specific sale dates, the request must be made within both the promotion dates and 30 days of purchase; requests after the promotion ends may be denied | Claim deadline is the earlier of the promotion end date and the end of the 30-day window; alerts and the claim card show it |
 | BR-6 | Precious metals are not eligible for price matches or promotions. Resellers are not eligible and must buy during promotion dates to get promotional prices. Special Order Kiosk and Home Improvement installed products follow separate promotion rules. Tires and wheels qualify under the normal rules | Exclusions list in config, starting with precious metals and Special Order Kiosk and Home Improvement installed products; the owner is a non-reseller member |
@@ -163,7 +163,7 @@ The biggest risk is that automated access to Costco breaks or leads Costco to en
 **Constraints**
 
 - Part-time build alongside a full-time job; scope sized to evenings and weekends.
-- Low or zero hosting cost during Phase 1, plus app store developer account fees.
+- Phase 1 running costs under $10 a month (hosting, push, email, storage), plus app store developer account fees.
 - No storage of payment card numbers or Costco passwords; the Costco session stays on the member's phone.
 - The product is an iOS and Android app from one cross-platform codebase, plus a backend API. The mobile framework and stack are decided in the Design phase; Python is the likely backend language.
 

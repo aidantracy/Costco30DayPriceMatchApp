@@ -109,7 +109,7 @@ As the Owner, I want to edit or delete a purchase, so that a misread price or a 
 
 As the Owner, I want to see how many days are left to claim each item, so that I know what's still worth watching.
 
-- **Given** a purchase dated D and a configured window of N days, **when** the Owner views it, **then** the last eligible date is D + N days and the days left are shown counting down to it (inclusive or exclusive counting confirmed by OQ-04).
+- **Given** a purchase dated D and a configured window of N days, **when** the Owner views it, **then** the last eligible date is D + N days, day N itself counts, and the days left are shown counting down to it (BR-1, OQ-04).
 - **Given** a purchase flagged by a promotional price with an end date E, **then** its claim deadline is the earlier of E and the last eligible date, and the countdown, alerts and claim card show that deadline (BR-5).
 - **Given** today is after the last eligible date, **when** the Owner views the purchase, **then** it shows as expired and is excluded from price checks and alerts.
 - **Given** the configured window length changes, **when** the server restarts, **then** every open purchase's last eligible date is recalculated from the new value without a code change (BR-7).
@@ -143,7 +143,7 @@ As the Owner, I want a single list of everything still in its window, sorted by 
 As the Owner, I want the app to check Costco's current price for everything I bought that's still in its window, so that I never have to look for sales myself.
 
 - **Given** an open, non-excluded purchase, **when** the scheduled price check runs, **then** the current Costco price for that item in the purchase's channel is checked at least once every 24 hours, and the result is saved to the item's price history with the source `automatic` and the time checked.
-- **Given** a `warehouse` purchase, **when** it is checked, **then** the price comes from the Warehouse Savings listing for the Owner's warehouse (see OQ-05).
+- **Given** a `warehouse` purchase, **when** it is checked, **then** the price comes from Costco's in-warehouse savings listing (on costco.com, the search results filtered to items bought in the warehouse; see OQ-05).
 - **Given** a checked price lower than the unit price paid, **when** it is saved, **then** the purchase is flagged and an alert is triggered (US-ALR-01), including the sale end date when the page shows one (BR-5).
 - **Given** an item whose price can't be found for its channel (for example a warehouse-only price, see OQ-05), **when** the check runs, **then** the item is marked "not checked automatically" on its detail screen, and the Owner can still enter a price by hand (US-PRC-02).
 - **Given** a price check, **then** it compares only Costco's own price for the same item (BR-2) and never bypasses a bot check or verification challenge; if one appears, the check stops and the health alert in US-ALR-03 is raised.
@@ -319,7 +319,7 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | NFR-25 | Maintainability | Purchase sources (sync, shared PDF, manual) and price sources (automatic, manual) sit behind common interfaces, so a broken source can be fixed or replaced without changing the rest of the app. | Each source has its own module and contract tests. | Risks "Costco changes its site or blocks automated access" and "Automatic price checks miss warehouse-only prices" |
 | NFR-26 | Usability | Synced purchases need no action from the Owner. Logging one receipt through a fallback takes under 2 minutes. | Median under 2 minutes for shared PDFs over the first month, timed from opening the receipt in the Costco app to purchases saved. | Charter goal "Low effort" |
 | NFR-27 | Usability | The app supports the current and previous major versions of iOS and Android. Every screen works without horizontal scrolling on screens from 360 dp (Android) or 375 pt (iPhone) wide and up, including with larger system text sizes. | Checked on the smallest supported screen of each platform in Testing. | US-CLM-01; US-IMP-03 |
-| NFR-28 | Cost | Phase 1 hosting, push, email and storage run at low or zero cost, preferring free tiers. Any paid service is recorded as a Design decision with its monthly cost. App store developer account fees are the expected fixed cost. | Monthly cost reviewed at the end of Phase 1 (ceiling set in OQ-07). | Charter constraints |
+| NFR-28 | Cost | Phase 1 hosting, push, email and storage run at low or zero cost, preferring free tiers. Any paid service is recorded as a Design decision with its monthly cost. App store developer account fees are the expected fixed cost. | Under $10 a month in total, excluding app store developer fees (OQ-07); reviewed monthly during Phase 1. | Charter constraints |
 | NFR-29 | Compliance | The app uses a generic name and shows that it is not affiliated with Costco. | Disclaimer visible on the sign-in screen, the app's About screen and the README. | Risks "Using the Costco name or logo implies endorsement" and "App store review rejects the app" |
 | NFR-30 | Portability | The iOS and Android apps come from one cross-platform codebase (framework chosen in Design). Phase 1 builds are distributed through TestFlight and Google Play internal testing. | Both builds installable from their test tracks by the end of Phase 1. | Charter vision (phone app); charter scope (test-track install) |
 
@@ -331,7 +331,7 @@ The business rules are defined in the charter's [business rules](project-charter
 | --- | --- |
 | BR-1 Window starts at the purchase date | US-IMP-02, US-IMP-04, US-TRK-01 · FR-04, FR-12 |
 | BR-2 Only Costco's own lower price counts | US-PRC-01, US-PRC-02 · FR-16, FR-17, FR-18 (prices come only from Costco or the Owner, per item and channel) |
-| BR-3 No warehouse prices for Costco.com purchases | US-TRK-02 · FR-13 (same-channel comparison until OQ-14 is answered) |
+| BR-3 No price matching across channels | US-TRK-02 · FR-13 |
 | BR-4 Claim path differs by channel | US-CLM-01 · FR-22 |
 | BR-5 Promotional items must be claimed within the promotion dates | US-PRC-01, US-ALR-01 · FR-16, FR-19, NFR-18 |
 | BR-6 Some items and buyers are excluded | US-TRK-03 · FR-14, NFR-22 |
@@ -417,17 +417,17 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | OQ-01 | Do the charter's rules BR-1 to BR-8 match Costco's official price adjustment policy? | Project owner | **Resolved Oct 21, 2026** | The owner confirmed the official text. The charter rules were updated and BR-9 added (findings below). |
 | OQ-02 | Do Costco's terms of use allow a member's own app to read their order history and Costco's product pages automatically, and does that change for multiple users or a paid product? | Project owner | **Resolved Oct 21, 2026** | No. The Site Terms prohibit it without written consent (findings below). Decision: automation for the owner's own account and personal use only. Recheck the terms at the start of each phase. |
 | OQ-03 | What is the exact structure of the Costco account's order and warehouse receipt pages, the receipt PDF, and a product page, including the fields that identify a receipt uniquely? | Project owner | Design (parser design and duplicate key) | In the Costco app, receipts are under Account → Orders & Purchases → Warehouse tab (online orders on the neighboring tab); confirm the equivalent pages on costco.com, which the in-app browser uses. Inspect real examples locally. **Never commit real pages, receipts or screenshots.** Build invented fixtures with the same structure. |
-| OQ-04 | Is day 30 itself eligible (inclusive counting), and whose time zone defines "today" for the warehouse channel? | Project owner | Design | Affects FR-12 and the countdown. Confirm at a warehouse counter or with Costco customer service. |
-| OQ-05 | Can warehouse prices be seen online, and do warehouse receipt item numbers match costco.com item numbers? | Project owner | Design | **Partly answered Oct 21, 2026:** current warehouse deals are listed in the Costco app under Warehouse → Warehouse Savings. Still open: whether the same listing is reachable on costco.com, whether it is specific to the selected warehouse, and whether its item numbers match warehouse receipts. Items not covered rely on US-PRC-02 and the reminder in US-ALR-02. |
+| OQ-04 | Is day 30 itself eligible (inclusive counting), and whose time zone defines "today" for the warehouse channel? | Project owner | **Resolved Oct 21, 2026** | Day 30 counts (confirmed by the owner, Oct 21, 2026). Default chosen for time zones: warehouse purchases use the purchase warehouse's local date; online orders use the Owner's time zone. |
+| OQ-05 | Can warehouse prices be seen online, and do warehouse receipt item numbers match costco.com item numbers? | Project owner | Design | **Mostly answered Oct 21, 2026:** current warehouse deals are listed in the Costco app under Warehouse → Warehouse Savings, and on costco.com through search results filtered to items bought in the warehouse (`/s?keyword=OFF&dept=All&refinement=buyInWarehouse%3Dtrue`). Still open, to check in Design: whether the listing changes with the selected warehouse, and whether its item numbers match warehouse receipts. Items not covered rely on US-PRC-02 and the reminder in US-ALR-02. |
 | OQ-06 | Should the charter add rules for promotional quantity limits and for claiming promotional items within the promotion dates? | Project owner | **Resolved Oct 21, 2026** | Yes, both are official policy: BR-5 updated and BR-9 added. |
-| OQ-07 | What monthly cost ceiling counts as "low" for Phase 1 hosting, push, email and storage? | Project owner | Design | Needed to make NFR-28 measurable. |
+| OQ-07 | What monthly cost ceiling counts as "low" for Phase 1 hosting, push, email and storage? | Project owner | **Resolved Oct 21, 2026** | Under $10 a month, plus app store developer fees (NFR-28). |
 | OQ-08 | Should price checks run on the phone or on the server? | Project owner | Design | The server is more reliable on a schedule and needs no Costco session for public product pages; the phone keeps all Costco traffic on the member's own connection. Either way NFR-21 applies. |
 | OQ-09 | Can the Costco app share or export a warehouse receipt as a PDF on both iOS and Android, and in what form does it arrive? | Project owner | Design | US-IMP-03 depends on it. Check on both platforms with a real receipt, committing nothing from it. If a platform can't share a PDF, record the gap; manual entry remains. |
 | OQ-10 | Which push notification service will the backend use: Apple Push Notification service and Firebase Cloud Messaging directly, or a provider in front of both? | Project owner | Design | Must cover iOS and Android, fit NFR-28, and allow minimal payloads (NFR-14). |
 | OQ-11 | How often can each platform run a background sync, and is that enough for NFR-17? | Project owner | Design | iOS schedules background refresh at its own discretion. If background sync is too infrequent, sync on app open and the daily price check carry the load. |
 | OQ-12 | Which public sources of Costco sale prices allow reuse, and in what format? | Project owner | Phase 2 | Carried over from the charter. Could fill the warehouse gap in OQ-05 later. |
 | OQ-13 | Should Costco be asked for written permission to offer automated sync and price checks to other members, or to monetize the app? | Project owner | Phase 2 sign-up or monetization | Required by Site Terms Sections 4, 5 and 9. Without it, Phase 2 members use the fallbacks only. |
-| OQ-14 | Can a warehouse purchase be adjusted to a lower Costco.com price? | Project owner | Design (comparison rule in FR-13) | The policy only rules out the reverse. Until confirmed at a Returns counter, the app compares within the same channel. |
+| OQ-14 | Can a warehouse purchase be adjusted to a lower Costco.com price? | Project owner | **Resolved Oct 21, 2026** | No (confirmed by the owner, Oct 21, 2026). Channels never cross in either direction; BR-3 updated. |
 
 ### OQ-02 findings: terms of use
 
@@ -448,9 +448,9 @@ The owner confirmed the text of Costco's official price adjustment policy on Oct
 
 | Point | Before | Official policy | Change |
 | --- | --- | --- | --- |
-| Window | BR-1: 30 days from purchase | "purchases that reduce in price within 30 days of the date of purchase are eligible" | None |
+| Window | BR-1: 30 days from purchase | "purchases that reduce in price within 30 days of the date of purchase are eligible" | Day 30 counts, confirmed by the owner (OQ-04) |
 | Other retailers | BR-2 | "Costco does not price match with other businesses or retailers" | None |
-| Channels | BR-3: channels fully separate | "Costco does not price match Costco warehouse prices for Costco.com purchases" | Narrower: only this direction is stated. The app still compares within the same channel (OQ-14) |
+| Channels | BR-3: channels fully separate | "Costco does not price match Costco warehouse prices for Costco.com purchases" | Only this direction is written; the owner confirmed the reverse is also refused (OQ-14), so channels never cross |
 | Claim path | BR-4 | Costco.com: "Request a Price Match" form; warehouse: the Returns counter at the location where the item was bought | Claim card wording updated (US-CLM-01) |
 | Promotions with sale dates | BR-5: member reports | Request must be "within both the active promotional dates and 30 days of the purchase date" | Now an official rule; claim deadline is the earlier of the two (US-TRK-01, FR-12) |
 | Quantity limits | Not covered | "eligible up to the limit quantity" | New BR-9; US-PRC-04 raised to Must |
