@@ -1,6 +1,6 @@
 # Costco Price Match App — Project Charter
 
-**Status:** Draft · **Phase:** Planning · **Last updated:** Oct 20, 2026
+**Status:** Draft · **Phase:** Planning · **Last updated:** Oct 21, 2026
 
 ## Problem statement
 
@@ -15,7 +15,7 @@ Ship a personal tool first, but build it on a multi-user foundation so other mem
 The product is a phone app for iOS and Android, built from one cross-platform codebase. A small backend API sits behind it to store purchases, run price checks and the alert schedule, and send notifications.
 
 - **Phase 1 (personal):** one real user (the developer), real receipts, real alerts. This proves the core loop works.
-- **Phase 2 (multi-user):** open sign-up to other members, add shared price reports, and harden security and privacy.
+- **Phase 2 (multi-user):** open sign-up to other members, add shared price reports, and harden security and privacy. Automated receipt sync and price checks are offered to other members, or monetized, only with Costco's written permission (see [Terms of use](#terms-of-use)); otherwise Phase 2 members use the fallbacks.
 
 To keep that path open from day one, the design includes user accounts and authentication, scopes every record to a user ID, keeps business rules out of the UI, and stores secrets in configuration rather than code.
 
@@ -48,7 +48,7 @@ The MVP makes tracking as close to effortless as possible. The member signs in t
 
 | Feature | MVP (Phase 1) | Phase 2 | Out of scope |
 | --- | --- | --- | --- |
-| Automatic sync of online and warehouse receipts from the member's Costco account, through a sign-in on the member's phone | Yes |  |  |
+| Automatic sync of online and warehouse receipts from the member's Costco account, through a sign-in on the member's phone | Yes (owner's own account, personal use) | Only with Costco's written permission |  |
 | One-tap import of warehouse receipts: share the receipt PDF from the Costco app | Yes (fallback) |  |  |
 | Alert when receipt sync or price checks stop working, or the Costco session expires | Yes |  |  |
 | Auto-import online orders from forwarded Costco.com order confirmation emails |  | Yes (fallback); optional read-only Gmail connection (OAuth) |  |
@@ -56,7 +56,7 @@ The MVP makes tracking as close to effortless as possible. The member signs in t
 | Manual purchase entry (item #, name, price, date, warehouse) | Yes (fallback) |  |  |
 | Receipt photo with OCR for paper receipts |  | Yes |  |
 | Countdown of days left per item's window | Yes |  |  |
-| Automatic price checks for every item still in its window | Yes |  |  |
+| Automatic price checks for every item still in its window, online and in the Warehouse Savings listings | Yes (owner's own account, personal use) | Only with Costco's written permission |  |
 | Manual entry of current sale price | Yes (fallback) |  |  |
 | Alert when current price is below price paid, shown in the app and as a push notification banner | Yes (email as fallback) |  |  |
 | iOS and Android app installed through TestFlight and Google Play internal testing | Yes |  |  |
@@ -89,11 +89,11 @@ Sources: [Tasting Table](https://www.tastingtable.com/1803125/does-costco-price-
 
 ## Data sources and feasibility
 
-Costco has no public API for purchases or prices, so the MVP reads the member's own order and receipt history through a sign-in on the member's phone, and checks Costco's product pages for current prices. Both depend on Costco's site staying the same and on automated access being acceptable under Costco's terms of use, so each stream keeps a fallback the member controls: shared receipt PDFs and manual entry for purchases, and manual entry for prices.
+Costco has no public API for purchases or prices, so the MVP reads the member's own order and receipt history through a sign-in on the member's phone, and checks Costco's product pages for current prices. Both depend on Costco's site staying the same, and Costco's Site Terms prohibit this kind of automated access without written consent (see [Terms of use](#terms-of-use)), so automation is limited to the owner's own account for personal use, and each stream keeps a fallback the member controls: shared receipt PDFs and manual entry for purchases, and manual entry for prices.
 
 | Data | Option | Effort | Reliability | Terms risk | Decision |
 | --- | --- | --- | --- | --- | --- |
-| Online and warehouse purchases | Sync from the member's Costco account through a sign-in on the member's phone | Medium | Medium (breaks when Costco changes its site) | Medium to high; check Costco's terms of use | MVP |
+| Online and warehouse purchases | Sync from the member's Costco account through a sign-in on the member's phone | Medium | Medium (breaks when Costco changes its site) | High; prohibited by Site Terms Section 9 without written consent | MVP (owner's own account, personal use) |
 | Online purchases | Forwarded Costco.com order confirmation emails | Low | High | None | Phase 2 fallback |
 | Warehouse purchases | Receipt PDF shared from the Costco app | Low | High (structured PDF) | None | MVP fallback |
 | Any purchase | Manual entry | Low | High | None | MVP fallback |
@@ -101,21 +101,42 @@ Costco has no public API for purchases or prices, so the MVP reads the member's 
 | Purchase trigger | Card transaction feed (aggregator such as Plaid) to prompt an import | Medium | High for the trigger; no line items | None, but adds sensitive financial data | Phase 2 investigation |
 | Any purchase | Browser extension reading the member's own logged-in session | Medium | Low (breaks on site changes) | Medium | Not needed (replaced by sync on the phone) |
 | Any purchase | App's server logs into the member's Costco account with stored credentials | High | Low (MFA, bot detection) | High; server holds every member's password | Out of scope |
-| Current prices | Automatic checks of Costco's product pages for items still in their window | Medium | Medium (warehouse-only prices may not appear online) | Medium to high; check Costco's terms of use | MVP |
+| Current prices | Automatic checks of Costco's product pages and Warehouse Savings listings for items still in their window | Medium | Medium (item numbers may differ between channels) | High; prohibited by Site Terms Section 9 without written consent | MVP (owner's own account, personal use) |
 | Current prices | Manual entry when a sale is spotted | Low | High | None | MVP fallback |
 | Current prices | Monthly savings book from public listings | Medium | Medium | Check source terms | Phase 2 investigation |
 | Current prices | Community reports from other users | Medium | Medium (needs moderation) | None | Phase 2 |
 
 Open question: which public sources of Costco sale prices allow reuse, and in what format?
 
+## Terms of use
+
+Costco's [Site Terms](https://www.costco.com/f/-/terms-and-conditions-of-use) (last updated Oct 7, 2026) were reviewed on Oct 21, 2026. This is a summary for planning, not legal advice.
+
+| Section | What it says | Effect on this project |
+| --- | --- | --- |
+| 4, License and Site Access | Personal use only; no commercial use of the Services or Site Materials without Costco's written permission | Automation can't be monetized without permission |
+| 5, Accounts | Members may not share their account credentials or let others use them | A multi-user version can't have members sign in to Costco through this app without permission |
+| 6, Trademarks | No use of Costco's trademarks without written permission | Generic app name, no logo, unaffiliated disclaimer |
+| 9, Your Conduct | Prohibits data mining, robots or similar extraction methods; developing or using applications that interact with the Services without prior written consent; and bypassing measures that limit access | Receipt sync and automatic price checks conflict with this clause |
+| 16, Termination | Costco may end a member's access to its site and apps without notice for violations | The owner's online account is at risk |
+
+**Decision (Oct 21, 2026):** the owner accepts the risk and builds automated sync and price checks for the owner's own account and personal use only. In practice that means:
+
+- automated sources stay off for any other account;
+- automation is never monetized or offered to other members without Costco's written permission;
+- request rates stay at personal-use levels;
+- the app never bypasses access controls or bot checks.
+
+The terms are rechecked at the start of each phase and before any sign-up or monetization.
+
 ## Risks and mitigations
 
-The biggest risk is that automated access to Costco breaks or is not permitted. Every automated stream therefore keeps a manual fallback, and the terms of use are reviewed before Design.
+The biggest risk is that automated access to Costco breaks or leads Costco to end the owner's online access, since its Site Terms prohibit it. Every automated stream therefore keeps a manual fallback, and automation stays limited to the owner's own account.
 
 | Risk | Likelihood | Impact | Mitigation |
 | --- | --- | --- | --- |
 | Costco changes its site or blocks automated access, breaking sync or price checks | High | High | Pluggable purchase and price sources; versioned parsers with fixture tests; alert the member when sync stops; PDF sharing and manual entry as fallbacks; never bypass bot checks |
-| Automated access conflicts with Costco's terms of use, risking the member's account or a takedown | Medium | High | Review the terms before Design; personal-scale request rates; no server-side login; reassess before Phase 2 sign-up or monetization |
+| Automated access conflicts with Costco's terms of use, risking the member's account or a takedown | High (confirmed in Site Terms Sections 4, 5 and 9) | High | Owner's own account and personal use only; personal-scale request rates; never bypass access controls; no server-side login; automated sources off for other accounts; recheck terms each phase; seek written permission before Phase 2 sign-up or monetization |
 | Automatic price checks miss warehouse-only prices or can't match warehouse item numbers to online listings | High | Medium | Manual price entry fallback; investigate in Design |
 | The Costco session stored on the phone is stolen or misused | Low | High | Session kept only in the phone's secure storage (Keychain or Keystore); password never stored or sent to the server; signing out clears it |
 | Spoofed or malicious inbound emails and PDFs | Medium | High | Accept mail only from the member's registered address and verify the Costco sender (DKIM); parse PDFs in a sandbox with size and type limits; never render untrusted HTML |
@@ -123,7 +144,7 @@ The biggest risk is that automated access to Costco breaks or is not permitted. 
 | Receipt data leaks (purchase history, warehouse location) | Medium | High | Least-privilege access, encryption at rest, no card data stored, threat model in Design |
 | Costco changes the policy | Medium | Medium | Rules in config; review policy each quarter |
 | OCR misreads item numbers or prices (Phase 2) | High | Medium | User confirms every OCR field before saving |
-| Using the Costco name or logo implies endorsement | Medium | Medium | Generic app name; disclaimer that it's unaffiliated |
+| Using the Costco name or logo implies endorsement | Medium | Medium | Generic app name; no Costco logo; disclaimer that it's unaffiliated (Site Terms Section 6) |
 | App store review rejects the app or its use of the Costco name | Medium | Medium | Phase 1 ships through test tracks only; generic name, no Costco logo, accurate privacy labels before any public listing |
 | Purchase details appear in lock-screen notifications | Medium | Low | Notifications carry only the item and the amount saved; details load after the app opens |
 | Scope creep delays a usable MVP | Medium | Medium | Hold the MVP list; new ideas go to a Phase 2 backlog |

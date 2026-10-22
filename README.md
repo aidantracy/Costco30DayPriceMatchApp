@@ -12,8 +12,8 @@ Costco refunds the difference when an item's price drops within 30 days of purch
 
 An iOS and Android phone app, backed by a small server API.
 
-- **Automatic receipt sync** of online and warehouse purchases from your Costco account, after a one-time sign-in on your phone
-- **Automatic price checks** for everything still in its adjustment window
+- **Automatic receipt sync** of online and warehouse purchases from your Costco account, after a one-time sign-in on your phone (personal use, see [Terms of use](#terms-of-use))
+- **Automatic price checks** for everything still in its adjustment window, online and in Warehouse Savings
 - **Fallbacks you control:** share a receipt PDF from the Costco app, or enter purchases and prices by hand
 - **Countdown** of days left in each item's adjustment window
 - **Price-drop alerts** in the app and as a push notification banner when a current price falls below what you paid, with email as a fallback
@@ -42,6 +42,10 @@ This project follows the full software development lifecycle, with each phase pr
 - Every record scoped to its owner; least-privilege access
 - Secrets in environment configuration, never in source control
 - Test fixtures use fake data only
+
+## Terms of use
+
+Costco's [Site Terms](https://www.costco.com/f/-/terms-and-conditions-of-use) prohibit scraping and applications that interact with Costco's services without Costco's written consent. The automated receipt sync and price checks in this project are built for the developer's own account and personal use, at personal-use request rates, and never bypass access controls. They are not offered to other users or monetized. Anyone who runs this code is responsible for complying with Costco's terms. See the [charter](docs/project-charter.md#terms-of-use) for the review and decision.
 
 ## Disclaimer
 
