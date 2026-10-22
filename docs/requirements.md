@@ -32,11 +32,11 @@ Phase 1 stories are written for the Owner. Stories that exist so the Member can 
 | --- | --- | --- | --- | --- | --- |
 | IMP | Import | 7 | 6 | 1 | 0 |
 | TRK | Tracking | 4 | 3 | 1 | 0 |
-| PRC | Prices | 4 | 2 | 1 | 1 |
+| PRC | Prices | 4 | 3 | 1 | 0 |
 | ALR | Alerts | 3 | 3 | 0 | 0 |
 | CLM | Claims | 3 | 3 | 0 | 0 |
 | ACC | Accounts | 3 | 3 | 0 | 0 |
-| **Total** | | **24** | **20** | **3** | **1** |
+| **Total** | | **24** | **21** | **3** | **0** |
 
 ### 3.1 IMP — Import
 
@@ -110,6 +110,7 @@ As the Owner, I want to edit or delete a purchase, so that a misread price or a 
 As the Owner, I want to see how many days are left to claim each item, so that I know what's still worth watching.
 
 - **Given** a purchase dated D and a configured window of N days, **when** the Owner views it, **then** the last eligible date is D + N days and the days left are shown counting down to it (inclusive or exclusive counting confirmed by OQ-04).
+- **Given** a purchase flagged by a promotional price with an end date E, **then** its claim deadline is the earlier of E and the last eligible date, and the countdown, alerts and claim card show that deadline (BR-5).
 - **Given** today is after the last eligible date, **when** the Owner views the purchase, **then** it shows as expired and is excluded from price checks and alerts.
 - **Given** the configured window length changes, **when** the server restarts, **then** every open purchase's last eligible date is recalculated from the new value without a code change (BR-7).
 
@@ -124,7 +125,7 @@ As the Owner, I want every purchase tagged as warehouse or online, so that price
 
 As the Owner, I want items Costco won't adjust to be marked as excluded, so that I don't get alerts I can't claim.
 
-- **Given** an exclusions list in configuration (item numbers and description keywords, for example precious metals), **when** a matching purchase arrives, **then** it is marked excluded with the reason (BR-6).
+- **Given** an exclusions list in configuration (item numbers, departments and description keywords), **when** a matching purchase arrives, **then** it is marked excluded with the reason (BR-6). The default list covers precious metals and Special Order Kiosk and Home Improvement installed products; tires and wheels are not excluded.
 - **Given** any purchase, **when** the Owner marks it excluded or un-excluded by hand, **then** the change is saved and price checks and alerts follow the new state.
 - **Given** an excluded purchase, **then** it is not price-checked and no alert is sent for it.
 
@@ -162,11 +163,12 @@ As the Owner, I want to see every price recorded for an item, so that I can judg
 - **Given** several prices recorded for one item, **when** the Owner views that item, **then** all prices are listed with channel, source, date and sale end date, newest first.
 - **Given** a new price, **when** it is saved, **then** earlier entries are kept, not overwritten; repeated automatic checks with no change are collapsed into one entry with a first-seen and last-seen date.
 
-#### US-PRC-04 · Respect promotional quantity limits · Could
+#### US-PRC-04 · Respect promotional quantity limits · Must
 
 As the Owner, I want a sale's per-member quantity limit taken into account, so that the claim card doesn't overstate what I can recover.
 
-- **Given** a current price with a quantity limit L (entered by hand or shown on the product page), **when** a purchase of quantity Q is flagged, **then** the claim amount uses min(Q, L) units (see OQ-06).
+- **Given** a current price with a quantity limit L (entered by hand or shown on the product page), **when** a purchase of quantity Q is flagged, **then** the refund due uses min(Q, L) units, and the claim card notes the limit (BR-9).
+- **Given** no limit is known, **then** the refund due uses the full quantity bought.
 
 ### 3.4 ALR — Alerts
 
@@ -174,7 +176,7 @@ As the Owner, I want a sale's per-member quantity limit taken into account, so t
 
 As the Owner, I want a price drop to show up both inside the app and as a notification banner, so that I see it right away and can find it again later.
 
-- **Given** a purchase flagged by a new lower price, **when** the flag is created, **then** within 15 minutes a push notification banner appears on the Owner's phone showing the item description and the amount saved, and tapping it opens the claim card (BR-5).
+- **Given** a purchase flagged by a new lower price, **when** the flag is created, **then** within 15 minutes a push notification banner appears on the Owner's phone showing the item description, the amount saved and the claim deadline, and tapping it opens the claim card (BR-5).
 - **Given** the same flag, **when** the Owner next opens the app, **then** the item appears in a "Price drops" list on the home screen with an unread badge until the Owner opens it, and the app icon shows a badge count of unread price drops where the platform supports it.
 - **Given** the app is opened for the first time after sign-in, **when** it asks for notification permission and the Owner allows it, **then** the phone is registered for push notifications.
 - **Given** push permission is off or the push service reports the phone unreachable, **when** an alert is due, **then** the same alert is sent by email instead, with a link that opens the claim card, and it still appears in the in-app list.
@@ -204,7 +206,7 @@ As the Owner, I want to know when sync or price checks fail, so that I can recon
 As the Owner, I want a screen I can show at the counter or use online with everything needed for the claim, so that the adjustment takes as little time as possible.
 
 - **Given** a flagged purchase, **when** the Owner opens its claim card, **then** it shows item number, description, purchase date, channel, warehouse number or order number, quantity, price paid, current price and where it was seen, refund due (difference × eligible quantity), sale end date if known, and last eligible date.
-- **Given** a `warehouse` purchase, **then** the card says to take it to the warehouse's returns or membership counter; **given** an `online` purchase, **then** it says to use the price adjustment request on the Costco.com order (BR-4).
+- **Given** a `warehouse` purchase, **then** the card says to take it to the Returns counter at the warehouse where it was bought, and names that warehouse; **given** an `online` purchase, **then** it says to use the "Request a Price Match" form on Costco's customer service site (BR-4).
 - **Given** the card is opened on the smallest supported phone screen, **then** it fits without horizontal scrolling and the item number is in large type.
 - **Given** the phone has no connection (common inside a warehouse), **when** the Owner opens the claim card of a flagged purchase, **then** the most recently synced card is shown with the time it was last updated.
 
@@ -265,9 +267,9 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | FR-09 | Place any synced receipt, shared PDF or line that fails parsing in a review queue with reason, parser version and date, and notify the Owner. | US-IMP-06 |
 | FR-10 | Let the Owner resolve a review-queue entry as a manual purchase or dismiss it. | US-IMP-06 |
 | FR-11 | Let the Owner edit and delete purchases, recalculating windows and alerts, keeping savings-log entries for claimed or refunded purchases, and never re-creating a deleted purchase on a later sync. | US-IMP-07 |
-| FR-12 | Calculate each purchase's last eligible date as purchase date plus the configured window length, and mark purchases past that date as expired. | US-TRK-01 |
+| FR-12 | Calculate each purchase's last eligible date as purchase date plus the configured window length, and each flag's claim deadline as the earlier of that date and the promotion end date when there is one; mark purchases past their last eligible date as expired. | US-TRK-01 |
 | FR-13 | Store a channel on every purchase and every recorded price, and compare prices only within the same channel. | US-TRK-02, US-PRC-01, US-PRC-02 |
-| FR-14 | Mark purchases as excluded automatically from a configured exclusions list, let the Owner set or clear the flag by hand, and skip excluded purchases in price checks and alerts. | US-TRK-03 |
+| FR-14 | Mark purchases as excluded automatically from a configured exclusions list (precious metals and Special Order Kiosk and Home Improvement installed products by default), let the Owner set or clear the flag by hand, and skip excluded purchases in price checks and alerts. | US-TRK-03 |
 | FR-15 | Show a home screen of open purchases sorted by days left, with filters for expired and excluded items, a marker on flagged items, a "Price drops" list with unread badges, and health banners. | US-TRK-04, US-ALR-01, US-ALR-03 |
 | FR-16 | Check the current Costco price of every open, non-excluded purchase in its channel at least once every 24 hours, record each result with the source `automatic`, and mark items whose price can't be found as not checked automatically. | US-PRC-01 |
 | FR-17 | Provide a manual current-price form (item number, channel, price, date seen, optional sale end date, optional quantity limit), record entries with the source `manual`, and keep every recorded price as history. | US-PRC-02, US-PRC-03, US-PRC-04 |
@@ -275,7 +277,7 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | FR-19 | For each new flag, send a push notification banner with the item and amount saved, add the item to the in-app "Price drops" list and the app icon badge, send by email instead when push is off or fails, and alert once per purchase per lower price. | US-ALR-01 |
 | FR-20 | Run a daily job that sends one notification summarizing open, non-excluded purchases whose last eligible date is within the configured reminder lead time, listing items not checked automatically first, and catching up after a missed run. | US-ALR-02 |
 | FR-21 | Detect an expired Costco session, repeated sync or price-check failures, and bot checks or verification challenges; stop automated access when a challenge appears; notify the Owner; and show a health banner with reconnect and fallback options until a later run succeeds. | US-ALR-03, US-PRC-01 |
-| FR-22 | Generate a claim card with the fields and channel-specific claim path in US-CLM-01. | US-CLM-01 |
+| FR-22 | Generate a claim card with the fields, claim deadline, limit-adjusted refund due and channel-specific claim path in US-CLM-01 and US-PRC-04. | US-CLM-01, US-PRC-04 |
 | FR-23 | Cache claim cards for flagged purchases on the phone so they open without a connection, showing when each was last synced. | US-CLM-01 |
 | FR-24 | Track claim status through flagged, claimed, refunded, denied and dismissed, enforce the allowed moves, and record the date of each change. | US-CLM-02 |
 | FR-25 | Show a savings log with per-claim entries, all-time and monthly totals, and alert accuracy. | US-CLM-03 |
@@ -303,7 +305,7 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | NFR-11 | Privacy | Purchase data, prices, claims and stored import files are encrypted at rest on the server. Data cached on the phone uses the platform's encrypted storage (iOS Data Protection, Android encrypted storage). | Server encryption settings documented in Design and verified at deployment; device storage reviewed against MASVS. | Risk "Receipt data leaks" |
 | NFR-12 | Privacy | No real receipts, account pages or personal data are committed. Test fixtures use invented data only, modeled on real structure. | Pre-commit PII scan; fixture review in every PR touching parsers. | Charter risks; README principles |
 | NFR-13 | Privacy | Shared PDFs are deleted once their items are imported or resolved from the review queue, or after 30 days, whichever comes first. Logs never contain receipt contents, passwords, or app or Costco session tokens. | Retention job test; log review in Testing. | Risk "Receipt data leaks" |
-| NFR-14 | Privacy | Notification banners and email alerts show only the item description and the amount saved: no receipt contents, card data, membership number or order number. Details load after the app opens and the session is checked. | Payload fixture test. | Risk "Purchase details appear in lock-screen notifications" |
+| NFR-14 | Privacy | Notification banners and email alerts show only the item description, the amount saved and the claim deadline: no receipt contents, card data, membership number or order number. Details load after the app opens and the session is checked. | Payload fixture test. | Risk "Purchase details appear in lock-screen notifications" |
 | NFR-15 | Reliability | No purchase is silently dropped. Every synced receipt or shared PDF ends as tracked purchases, a duplicate notice, or a review-queue entry. | 100% of fixture imports, including malformed ones, end in one of those three states. | Risk "Costco changes its site or blocks automated access" |
 | NFR-16 | Reliability | Sync, imports and price checks are idempotent: re-running them never creates duplicate purchases, prices or alerts. Scheduled jobs catch up after a missed run. | Replay tests; skipped-day test for reminders. | US-IMP-05; US-ALR-02 |
 | NFR-17 | Reliability | A purchase appears in the app within 24 hours of appearing in the Costco account when the phone is online and background refresh is allowed, and within 60 seconds of opening the app. | Measured over the first month of use (background limits per platform in OQ-11). | Charter goal "Low effort" |
@@ -329,18 +331,19 @@ The business rules are defined in the charter's [business rules](project-charter
 | --- | --- |
 | BR-1 Window starts at the purchase date | US-IMP-02, US-IMP-04, US-TRK-01 · FR-04, FR-12 |
 | BR-2 Only Costco's own lower price counts | US-PRC-01, US-PRC-02 · FR-16, FR-17, FR-18 (prices come only from Costco or the Owner, per item and channel) |
-| BR-3 Warehouse and online are separate channels | US-TRK-02 · FR-13 |
+| BR-3 No warehouse prices for Costco.com purchases | US-TRK-02 · FR-13 (same-channel comparison until OQ-14 is answered) |
 | BR-4 Claim path differs by channel | US-CLM-01 · FR-22 |
-| BR-5 Claims may be refused after a sale ends | US-PRC-01, US-ALR-01 · FR-16, FR-19, NFR-18 |
+| BR-5 Promotional items must be claimed within the promotion dates | US-PRC-01, US-ALR-01 · FR-16, FR-19, NFR-18 |
 | BR-6 Some items and buyers are excluded | US-TRK-03 · FR-14, NFR-22 |
 | BR-7 Costco may change the policy | US-TRK-01 · NFR-22 |
 | BR-8 Refunds take time; status is tracked | US-CLM-02 · FR-24 |
+| BR-9 Refunds only up to a promotional item limit | US-PRC-04 · FR-17, FR-22 |
 
-A check of the rules against Costco's official policy turned up possible additions and refinements. They are recorded in OQ-01 and OQ-06 rather than applied, because the charter is the source of truth for rules.
+The rules were confirmed against Costco's official policy on Oct 21, 2026. The charter now matches it, including the new BR-9 (see OQ-01 findings).
 
 ## 7. MVP definition
 
-Phase 1 ships when all 20 Must-have stories pass their acceptance criteria and every NFR in section 5 is met or has a recorded, justified exception.
+Phase 1 ships when all 21 Must-have stories pass their acceptance criteria and every NFR in section 5 is met or has a recorded, justified exception.
 
 **Must-have stories (Phase 1 MVP)**
 
@@ -348,12 +351,12 @@ Phase 1 ships when all 20 Must-have stories pass their acceptance criteria and e
 | --- | --- |
 | Import | US-IMP-01, US-IMP-02, US-IMP-03, US-IMP-04, US-IMP-05, US-IMP-06 |
 | Tracking | US-TRK-01, US-TRK-02, US-TRK-03 |
-| Prices | US-PRC-01, US-PRC-02 |
+| Prices | US-PRC-01, US-PRC-02, US-PRC-04 |
 | Alerts | US-ALR-01, US-ALR-02, US-ALR-03 |
 | Claims | US-CLM-01, US-CLM-02, US-CLM-03 |
 | Accounts | US-ACC-01, US-ACC-02, US-ACC-03 |
 
-**Should and Could (built in Phase 1 if time allows, in this order):** US-TRK-04, US-IMP-07, US-PRC-03, US-PRC-04.
+**Should (built in Phase 1 if time allows, in this order):** US-TRK-04, US-IMP-07, US-PRC-03.
 
 **Deferred to Phase 2 (Won't have in the MVP)**, as set by the charter:
 
@@ -387,7 +390,7 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | Scope: user accounts and authentication (single account) | US-ACC-01, US-ACC-02 | FR-26 to FR-28, FR-30 | NFR-08, NFR-09, NFR-10 |
 | Scope: iOS and Android app installed through test tracks | US-IMP-03, US-CLM-01 | FR-06, FR-23 | NFR-27, NFR-30 |
 | Scope (out): no stored Costco passwords, no server-side Costco login | — | — | NFR-01, NFR-02 |
-| Rules BR-1 to BR-8 | See [section 6](#6-business-rules) | FR-04, FR-12 to FR-14, FR-16 to FR-19, FR-22, FR-24 | NFR-18, NFR-22 |
+| Rules BR-1 to BR-9 | See [section 6](#6-business-rules) | FR-04, FR-12 to FR-14, FR-16 to FR-19, FR-22, FR-24 | NFR-18, NFR-22 |
 | Goal: recover money | US-PRC-01, US-ALR-01, US-CLM-01, US-CLM-03 | FR-16, FR-18, FR-19, FR-22, FR-25 | NFR-20 |
 | Goal: low effort | US-IMP-01, US-IMP-02, US-PRC-01 | FR-01, FR-03, FR-16 | NFR-17, NFR-26 |
 | Goal: trustworthy alerts (90% claimable) | US-IMP-05, US-TRK-02, US-TRK-03, US-CLM-02, US-CLM-03 | FR-08, FR-13, FR-14, FR-24, FR-25 | NFR-16 |
@@ -411,12 +414,12 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 
 | ID | Question | Owner | Blocks | Notes |
 | --- | --- | --- | --- | --- |
-| OQ-01 | Do the charter's rules BR-1 to BR-8 match Costco's official price adjustment policy? | Project owner | Design | See findings below. The official page couldn't be read automatically, so it needs a manual check. |
+| OQ-01 | Do the charter's rules BR-1 to BR-8 match Costco's official price adjustment policy? | Project owner | **Resolved Oct 21, 2026** | The owner confirmed the official text. The charter rules were updated and BR-9 added (findings below). |
 | OQ-02 | Do Costco's terms of use allow a member's own app to read their order history and Costco's product pages automatically, and does that change for multiple users or a paid product? | Project owner | **Resolved Oct 21, 2026** | No. The Site Terms prohibit it without written consent (findings below). Decision: automation for the owner's own account and personal use only. Recheck the terms at the start of each phase. |
 | OQ-03 | What is the exact structure of the Costco account's order and warehouse receipt pages, the receipt PDF, and a product page, including the fields that identify a receipt uniquely? | Project owner | Design (parser design and duplicate key) | In the Costco app, receipts are under Account → Orders & Purchases → Warehouse tab (online orders on the neighboring tab); confirm the equivalent pages on costco.com, which the in-app browser uses. Inspect real examples locally. **Never commit real pages, receipts or screenshots.** Build invented fixtures with the same structure. |
 | OQ-04 | Is day 30 itself eligible (inclusive counting), and whose time zone defines "today" for the warehouse channel? | Project owner | Design | Affects FR-12 and the countdown. Confirm at a warehouse counter or with Costco customer service. |
 | OQ-05 | Can warehouse prices be seen online, and do warehouse receipt item numbers match costco.com item numbers? | Project owner | Design | **Partly answered Oct 21, 2026:** current warehouse deals are listed in the Costco app under Warehouse → Warehouse Savings. Still open: whether the same listing is reachable on costco.com, whether it is specific to the selected warehouse, and whether its item numbers match warehouse receipts. Items not covered rely on US-PRC-02 and the reminder in US-ALR-02. |
-| OQ-06 | Should the charter add rules for promotional quantity limits and for claiming promotional items within the promotion dates? | Project owner | Implementation of US-PRC-04 | Secondary sources quote the official policy on both points (see findings). Requires a charter revision, so it's recorded here instead. |
+| OQ-06 | Should the charter add rules for promotional quantity limits and for claiming promotional items within the promotion dates? | Project owner | **Resolved Oct 21, 2026** | Yes, both are official policy: BR-5 updated and BR-9 added. |
 | OQ-07 | What monthly cost ceiling counts as "low" for Phase 1 hosting, push, email and storage? | Project owner | Design | Needed to make NFR-28 measurable. |
 | OQ-08 | Should price checks run on the phone or on the server? | Project owner | Design | The server is more reliable on a schedule and needs no Costco session for public product pages; the phone keeps all Costco traffic on the member's own connection. Either way NFR-21 applies. |
 | OQ-09 | Can the Costco app share or export a warehouse receipt as a PDF on both iOS and Android, and in what form does it arrive? | Project owner | Design | US-IMP-03 depends on it. Check on both platforms with a real receipt, committing nothing from it. If a platform can't share a PDF, record the gap; manual entry remains. |
@@ -424,6 +427,7 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | OQ-11 | How often can each platform run a background sync, and is that enough for NFR-17? | Project owner | Design | iOS schedules background refresh at its own discretion. If background sync is too infrequent, sync on app open and the daily price check carry the load. |
 | OQ-12 | Which public sources of Costco sale prices allow reuse, and in what format? | Project owner | Phase 2 | Carried over from the charter. Could fill the warehouse gap in OQ-05 later. |
 | OQ-13 | Should Costco be asked for written permission to offer automated sync and price checks to other members, or to monetize the app? | Project owner | Phase 2 sign-up or monetization | Required by Site Terms Sections 4, 5 and 9. Without it, Phase 2 members use the fallbacks only. |
+| OQ-14 | Can a warehouse purchase be adjusted to a lower Costco.com price? | Project owner | Design (comparison rule in FR-13) | The policy only rules out the reverse. Until confirmed at a Returns counter, the app compares within the same channel. |
 
 ### OQ-02 findings: terms of use
 
@@ -438,20 +442,20 @@ Costco's [Site Terms](https://www.costco.com/f/-/terms-and-conditions-of-use), l
 | 6, Trademarks | No use of Costco's trademarks without written permission | Generic app name and disclaimer (NFR-29) |
 | 16, Termination | Access can be ended "without notice and in its sole discretion" for violations | The owner accepts this risk for their own account |
 
-### OQ-01 findings: policy check
+### OQ-01 findings: official policy
 
-Costco's customer service page for price adjustments ("Price Adjustment - Costco.com Orders", article 628 on customerservice.costco.com) blocks automated reading, so it was checked through secondary sources that quote it. The owner should confirm these points against the live page before Design.
+The owner confirmed the text of Costco's official price adjustment policy on Oct 21, 2026. The charter's business rules were updated to match it, and these requirements follow the updated rules.
 
-| Point | Charter | What the sources report | Status |
+| Point | Before | Official policy | Change |
 | --- | --- | --- | --- |
-| Window | BR-1: 30 days from purchase, not delivery | Quoted as "within 30 days of the date of purchase." Sources say the clock starts at the order date for online orders. | Consistent |
-| Competitors | BR-2: Costco's own price only | Quoted as "Costco does not price match with other businesses or retailers." | Consistent |
-| Channels | BR-3: warehouse and online are separate | Sources say warehouse and online prices can't be matched against each other. | Consistent |
-| Claim path | BR-4: warehouse counter; Costco.com form | Online claims use a "Request a Price Match" option on the Costco.com order; warehouse claims go to the returns counter of the purchase warehouse. | Consistent; the online path is a button on the order, not a separate form |
-| Promotional items | BR-5: claims refused once a sale ended (member reports) | Promotional items reportedly must be claimed within both the promotion dates and the 30-day window. | Stronger than the charter states; see OQ-06 |
-| Quantity limits | Not covered | Promotional matches reportedly apply only "up to the limit quantity." | Gap; see OQ-06 and US-PRC-04 |
-| Exclusions | BR-6: gold bullion as an example; resellers excluded | Precious metals are excluded; reseller accounts get promotional pricing only when buying during the promotion dates. | Mostly consistent; reseller rule is narrower than the charter's wording |
-| Discretion | BR-7: Costco may deny or change the policy | Some warehouses reportedly approve requests a few days late at their discretion. | Consistent; the app should not rely on it |
-| Refunds | BR-8: online refunds to original payment, 5–10 business days | Same for online; warehouse adjustments are refunded to the original form of payment at the counter. | Consistent |
+| Window | BR-1: 30 days from purchase | "purchases that reduce in price within 30 days of the date of purchase are eligible" | None |
+| Other retailers | BR-2 | "Costco does not price match with other businesses or retailers" | None |
+| Channels | BR-3: channels fully separate | "Costco does not price match Costco warehouse prices for Costco.com purchases" | Narrower: only this direction is stated. The app still compares within the same channel (OQ-14) |
+| Claim path | BR-4 | Costco.com: "Request a Price Match" form; warehouse: the Returns counter at the location where the item was bought | Claim card wording updated (US-CLM-01) |
+| Promotions with sale dates | BR-5: member reports | Request must be "within both the active promotional dates and 30 days of the purchase date" | Now an official rule; claim deadline is the earlier of the two (US-TRK-01, FR-12) |
+| Quantity limits | Not covered | "eligible up to the limit quantity" | New BR-9; US-PRC-04 raised to Must |
+| Exclusions | BR-6: bullion, resellers | Precious metals excluded; resellers excluded; Special Order Kiosk and Home Improvement installed products follow separate rules; tires and wheels qualify | Default exclusions list updated (US-TRK-03) |
+| Discretion | BR-7 | Costco may deny requests and may restrict the policy, with restrictions shown at the point of purchase | None |
+| Refunds | BR-8 | Costco.com credits "typically issued within 5 to 10 business days to the original form of payment" | None |
 
-Sources: [Costco customer service, Price Adjustment - Costco.com Orders](https://customerservice.costco.com/app/answers/detail/a_id/628/~/price-adjustment---costco.com-orders) (not readable automatically), [Thrifle, Aug 2026](https://thrifle.com/blog/costco-price-adjustment), [Priceva, updated Jun 2026](https://priceva.com/blog/costco-price-match).
+Source: Costco customer service, [Price Adjustment - Costco.com Orders](https://customerservice.costco.com/app/answers/detail/a_id/628) (text confirmed by the owner, Oct 21, 2026).
