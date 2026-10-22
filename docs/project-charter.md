@@ -72,20 +72,21 @@ The MVP makes tracking as close to effortless as possible. The member signs in t
 
 ## Business rules
 
-An item qualifies when Costco's own price for it, in the same channel, drops within 30 days of the purchase date. These rules come from secondary sources and must be checked against Costco's official policy page before design starts.
+An item qualifies when Costco's own price for it drops within 30 days of the purchase date, subject to the rules below. They were checked against Costco's official price adjustment policy on Oct 21, 2026.
 
 | ID | Rule | How the app applies it |
 | --- | --- | --- |
-| BR-1 | Window is 30 days from the purchase date, not the delivery date | Countdown starts at the receipt date; online orders use the order date |
-| BR-2 | Only Costco's own lower price counts; no matching other retailers | Never compare against non-Costco prices |
-| BR-3 | Warehouse and online prices are separate channels | Store a channel per purchase; compare only within the same channel |
-| BR-4 | Warehouse claims go to the warehouse counter; online claims use Costco.com's request form | Claim card shows the right path per channel |
-| BR-5 | Members have reported claims refused once the sale had ended | Alert immediately and show the sale's end date when known |
-| BR-6 | Some items are excluded (gold bullion is one example); resellers are excluded | Allow flagging an item as excluded; keep an exclusions list as config |
-| BR-7 | Costco can deny adjustments at its discretion and may change the policy | Keep the window length and rules in config, not code |
-| BR-8 | Approved online refunds land on the original payment method, typically in 5 to 10 business days | Track claim status: flagged, claimed, refunded |
+| BR-1 | Purchases that drop in price within 30 days of the purchase date are eligible | Countdown starts at the receipt date; online orders use the order date |
+| BR-2 | Costco does not price match other businesses or retailers | Never compare against non-Costco prices |
+| BR-3 | Costco does not price match warehouse prices for Costco.com purchases, because online prices include shipping and handling | Store a channel per purchase; compare only within the same channel (whether a warehouse purchase can use a lower online price is an open question in the requirements) |
+| BR-4 | Costco.com purchases are claimed with the "Request a Price Match" form on Costco's customer service site; warehouse purchases at the Returns counter of the warehouse where the item was bought | Claim card shows the right path per channel, including the purchase warehouse |
+| BR-5 | For items with specific sale dates, the request must be made within both the promotion dates and 30 days of purchase; requests after the promotion ends may be denied | Claim deadline is the earlier of the promotion end date and the end of the 30-day window; alerts and the claim card show it |
+| BR-6 | Precious metals are not eligible for price matches or promotions. Resellers are not eligible and must buy during promotion dates to get promotional prices. Special Order Kiosk and Home Improvement installed products follow separate promotion rules. Tires and wheels qualify under the normal rules | Exclusions list in config, starting with precious metals and Special Order Kiosk and Home Improvement installed products; the owner is a non-reseller member |
+| BR-7 | Costco can deny requests at its sole discretion and may restrict the policy, with restrictions shown at the point of purchase | Keep the window length and rules in config, not code |
+| BR-8 | Approved Costco.com credits are typically issued within 5 to 10 business days to the original form of payment | Track claim status: flagged, claimed, refunded |
+| BR-9 | Products with promotional item limits are eligible only up to the limit quantity | Refund due uses the lesser of the quantity bought and the limit |
 
-Sources: [Tasting Table](https://www.tastingtable.com/1803125/does-costco-price-match/), [Hip2Save](https://hip2save.com/tips/costco-price-adjustment-policy/), [Chowhound](https://chowhound.com/1743913/track-costco-prices-after-purchase), [Slickdeals](https://daily.slickdeals.net/tech/costco-price-adjustment-policy/).
+Source: Costco customer service, [Price Adjustment - Costco.com Orders](https://customerservice.costco.com/app/answers/detail/a_id/628) (policy text confirmed by the owner, Oct 21, 2026); online and warehouse price differences: [Costco customer service article 691](https://customerservice.costco.com/app/answers/answer_view/a_id/691).
 
 ## Data sources and feasibility
 
@@ -154,6 +155,7 @@ The biggest risk is that automated access to Costco breaks or leads Costco to en
 **Assumptions**
 
 - The member is willing to sign in to Costco once inside the app, and to sign in again when Costco ends the session.
+- The owner is a non-reseller member, so the reseller restrictions in BR-6 don't apply in Phase 1.
 - Users keep their receipts, paper or digital, and can read item numbers and prices from them.
 - An alert within a day of a sale being entered is fast enough to claim before the sale ends.
 - The developer is the only user until Phase 1 is complete.
