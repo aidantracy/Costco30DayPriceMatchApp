@@ -2,7 +2,7 @@
 
 A tracker that watches the 30-day price adjustment window on Costco purchases and alerts you when an item you bought drops in price, so you can claim the difference.
 
-> **Status:** Requirements complete, Design next. No application code yet. See the [project charter](docs/project-charter.md) and [requirements specification](docs/requirements.md).
+> **Status:** Design in review. No application code yet. See the [project charter](docs/project-charter.md), [requirements specification](docs/requirements.md) and [system architecture](docs/design/architecture.md).
 
 ## Why
 
@@ -30,7 +30,7 @@ This project follows the full software development lifecycle, with each phase pr
 | --- | --- | --- |
 | 1. Planning | [Project charter](docs/project-charter.md) | Complete |
 | 2. Requirements | [Requirements specification](docs/requirements.md): user stories, MVP spec, traceability | Complete |
-| 3. Design | Architecture, data model, threat model | Not started |
+| 3. Design | [Architecture](docs/design/architecture.md), [data model](docs/design/data-model.md), [threat model](docs/design/threat-model.md), [decision records](docs/adr/README.md) | In review |
 | 4. Implementation | MVP features | Not started |
 | 5. Testing | Unit and integration tests, test plan | Not started |
 | 6. Deployment | Backend hosting, CI/CD, iOS and Android test builds | Not started |
