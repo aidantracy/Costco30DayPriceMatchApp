@@ -2,7 +2,7 @@
 
 A tracker that watches the 30-day price adjustment window on Costco purchases and alerts you when an item you bought drops in price, so you can claim the difference.
 
-> **Status:** Design in review. No application code yet. See the [project charter](docs/project-charter.md), [requirements specification](docs/requirements.md) and [system architecture](docs/design/architecture.md).
+> **Status:** Implementation in progress. See the [project charter](docs/project-charter.md), [requirements specification](docs/requirements.md) and [system architecture](docs/design/architecture.md).
 
 ## Why
 
@@ -30,11 +30,21 @@ This project follows the full software development lifecycle, with each phase pr
 | --- | --- | --- |
 | 1. Planning | [Project charter](docs/project-charter.md) | Complete |
 | 2. Requirements | [Requirements specification](docs/requirements.md): user stories, MVP spec, traceability | Complete |
-| 3. Design | [Architecture](docs/design/architecture.md), [data model](docs/design/data-model.md), [threat model](docs/design/threat-model.md), [decision records](docs/adr/README.md) | In review |
-| 4. Implementation | MVP features | Not started |
+| 3. Design | [Architecture](docs/design/architecture.md), [data model](docs/design/data-model.md), [threat model](docs/design/threat-model.md), [decision records](docs/adr/README.md) | Complete |
+| 4. Implementation | MVP features, [spikes](docs/spikes/README.md) | In progress |
 | 5. Testing | Unit and integration tests, test plan | Not started |
 | 6. Deployment | Backend hosting, CI/CD, iOS and Android test builds | Not started |
 | 7. Maintenance | Monitoring, feedback, backlog | Not started |
+
+## Development
+
+| Folder | What it is | Docs |
+| --- | --- | --- |
+| `app/` | iOS and Android app (React Native, Expo, TypeScript) | `cd app && npm install && npm start` |
+| `api/` | Backend API and scheduled jobs (FastAPI, Python 3.12) | [api/README.md](api/README.md) |
+| `scripts/` | Repository checks, including the personal-data scan | `python3 scripts/check_pii.py` |
+
+Run `docker compose up -d db` for a local Postgres. Continuous integration runs linting, type checks, tests, secret scanning and the personal-data scan on every pull request.
 
 ## Security and privacy principles
 
