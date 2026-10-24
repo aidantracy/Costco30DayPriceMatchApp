@@ -179,7 +179,7 @@ One row per receipt line item (FR-04).
 
 - `source` is `sync`, `screenshot` or `manual`; `channel` is `warehouse` or `online` (FR-13).
 - Duplicates are blocked by unique indexes: `(user_id, order_number, line_no)` for online orders and `(user_id, warehouse_id, receipt_id, line_no)` for warehouse receipts (FR-08). Manual entries are checked against `(user_id, item_number, purchase_date, unit_price_cents, channel)` in code, with a confirmation step instead of a hard block.
-- `unit_price_cents` is after any discount or instant-savings line for that item (FR-05).
+- `unit_price_cents` is after any discount or instant-savings line for that item (FR-05); `discount_cents` keeps the discount itself, for the claim card.
 - Deletes are soft (`deleted_at`), so a later sync recognizes the line and doesn't re-create it (FR-11).
 - The last eligible date is computed, not stored: `purchase_date + PRICE_ADJUSTMENT_WINDOW_DAYS`, inclusive (BR-1). A partial index on open, non-excluded, non-deleted rows keeps the daily jobs fast.
 
