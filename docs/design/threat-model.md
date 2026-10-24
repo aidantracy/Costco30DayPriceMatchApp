@@ -1,6 +1,6 @@
 # Costco Price Match App — Threat Model
 
-**Status:** Draft for review · **Phase:** 3, Design · **Last updated:** Oct 21, 2026
+**Status:** Draft for review · **Phase:** 3, Design · **Last updated:** Oct 23, 2026
 
 This threat model covers the Phase 1 design in the [architecture](architecture.md). It uses STRIDE (spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege) against each trust boundary, and maps every mitigation to a requirement in the [requirements specification](../requirements.md). It is reviewed again at the end of Implementation and before Phase 2.
 
@@ -52,9 +52,9 @@ flowchart LR
 
 | Boundary | Between | Crosses it |
 | --- | --- | --- |
-| B1 | The app and the rest of the phone (other apps, the OS, a person holding the phone) | Shared PDFs, notifications |
+| B1 | The app and the rest of the phone (other apps, the OS, a person holding the phone) | Receipt screenshots, notifications |
 | B2 | The in-app browser and costco.com | Sign-in, the Owner's session, account pages |
-| B3 | The app's JavaScript and content inside its WebViews | Messages from injected scripts and PDF.js |
+| B3 | The app's JavaScript and content inside its WebViews | Messages from injected scripts |
 | B4 | The phone and the API | Purchase fields, tokens, sync outcomes |
 | B5 | The backend and the database | All server data |
 | B6 | The price-check job and costco.com | Public page requests and responses |
@@ -72,7 +72,7 @@ flowchart LR
 | T-06 | B4 API | E | One account reads or changes another account's records by guessing IDs (IDOR), relevant once Phase 2 adds users | Every query filtered by `user_id` in one data-access layer; two-account tests on every route; UUIDs | FR-28, NFR-10 | Low |
 | T-07 | B4 API | T | Crafted request bodies cause injection or mass assignment (for example setting `automation_enabled` or a claim's `refund_due_cents`) | Pydantic models with explicit allowed fields; SQLAlchemy bound parameters; server recomputes all derived amounts | NFR-07, FR-31 | Low |
 | T-08 | B3 WebView | T, E | A compromised or unexpected page inside the in-app browser posts fake receipt data or calls app functions | WebView navigation limited to an allowlist of costco.com paths; message handler accepts only a fixed schema from allowlisted origins; no native functions exposed; parsed values validated (types, ranges, item-number format) | NFR-07, NFR-23 | Low |
-| T-09 | B1 / B3 PDF | T, D | A malicious PDF exploits the parser or hangs the app | PDF.js in a network-blocked WebView; type checked by content; 5 MB, 10 pages, 10 seconds; scripts and attachments never executed | NFR-05 | Low |
+| T-09 | B1 screenshots | T, D | A malicious or oversized image crashes or hangs text recognition, or a doctored screenshot inserts fake lines | Image type checked by content; 10 MB, 10 images and 20 seconds; recognition on the phone with no network; parse checks against the receipt's own totals; only the Owner's own records are affected | NFR-05, NFR-31 | Low |
 | T-10 | B4 upload | T | The phone uploads altered purchases (for example a higher price paid) | Phase 1 has one user, so this only affects the Owner's own records; server validates ranges and dates; Phase 2 adds rate limits and anomaly checks | NFR-07 | Accepted for Phase 1 |
 | T-11 | B6 price check | T | A changed or spoofed Costco page leads to a wrong price and a false flag | TLS to an allowlisted host; versioned parser with fixture tests; implausible changes (for example over 90% off) held for review instead of alerted; claim card shows where and when the price was seen | NFR-23, FR-22 | Medium: the Owner should glance at the price before claiming |
 | T-12 | B6 price check | E (SSRF) | A crafted item number makes the job fetch an internal or attacker-chosen URL | Item numbers validated as digits only; URLs built from a fixed template; outbound host allowlist; no redirects to other hosts | NFR-07 | Low |

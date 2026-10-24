@@ -1,6 +1,6 @@
 # ADR 0005: Parse Costco account pages and receipt PDFs on the phone
 
-**Status:** Accepted · **Date:** Oct 21, 2026
+**Status:** Accepted; the PDF part is superseded by [ADR 0006](0006-receipt-screenshots-on-device-ocr.md) · **Date:** Oct 21, 2026
 
 ## Context
 

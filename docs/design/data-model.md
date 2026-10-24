@@ -1,6 +1,6 @@
 # Costco Price Match App — Data Model
 
-**Status:** Draft for review · **Phase:** 3, Design · **Last updated:** Oct 21, 2026
+**Status:** Draft for review · **Phase:** 3, Design · **Last updated:** Oct 23, 2026
 
 This is the server-side data model in Neon Postgres, for the [architecture](architecture.md) and the [requirements](../requirements.md). The phone keeps an encrypted subset of it for offline use (section 4).
 
@@ -177,7 +177,7 @@ Public reference data: the Costco warehouse number printed on receipts and its t
 
 One row per receipt line item (FR-04).
 
-- `source` is `sync`, `pdf` or `manual`; `channel` is `warehouse` or `online` (FR-13).
+- `source` is `sync`, `screenshot` or `manual`; `channel` is `warehouse` or `online` (FR-13).
 - Duplicates are blocked by unique indexes: `(user_id, order_number, line_no)` for online orders and `(user_id, warehouse_id, receipt_id, line_no)` for warehouse receipts (FR-08). Manual entries are checked against `(user_id, item_number, purchase_date, unit_price_cents, channel)` in code, with a confirmation step instead of a hard block.
 - `unit_price_cents` is after any discount or instant-savings line for that item (FR-05).
 - Deletes are soft (`deleted_at`), so a later sync recognizes the line and doesn't re-create it (FR-11).
@@ -207,7 +207,7 @@ A record of every notification sent, used for de-duplication (`dedupe_key`, for 
 
 ### `review_items`
 
-Imports that failed to parse (FR-09). The server stores only the reason, source and parser version; the PDF itself, if any, stays on the phone (ADR 0005).
+Imports that failed to parse (FR-09). The server stores only the reason, source and parser version; the screenshots, if any, stay on the phone (ADR 0006).
 
 ### `automation_runs`
 
@@ -223,7 +223,7 @@ Seeded configuration (NFR-22): `match_type` is `item_number`, `department` or `k
 | --- | --- | --- |
 | Secure storage (Keychain / Keystore) | App refresh token, Costco session cookies, cache encryption key | Hardware-backed where available; device-only, not included in cloud backups (NFR-02) |
 | Offline cache | Open purchases, open flags and their claim cards, rules | Encrypted SQLite (spike S-6), deleted on sign-out (FR-30) |
-| App-private files | PDFs waiting in the review queue | Platform file protection; deleted when resolved or after 30 days (NFR-13) |
+| App-private files | Screenshots waiting in the review queue | Platform file protection; deleted when resolved or after 30 days (NFR-13) |
 
 ## 5. Retention
 

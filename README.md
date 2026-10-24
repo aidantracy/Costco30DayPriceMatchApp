@@ -14,7 +14,7 @@ An iOS and Android phone app, backed by a small server API.
 
 - **Automatic receipt sync** of online and warehouse purchases from your Costco account, after a one-time sign-in on your phone (personal use, see [Terms of use](#terms-of-use))
 - **Automatic price checks** for everything still in its adjustment window, online and in Warehouse Savings
-- **Fallbacks you control:** share a receipt PDF from the Costco app, or enter purchases and prices by hand
+- **Fallbacks you control:** upload screenshots of a receipt from the Costco app, or enter purchases and prices by hand
 - **Countdown** of days left in each item's adjustment window
 - **Price-drop alerts** in the app and as a push notification banner when a current price falls below what you paid, with email as a fallback
 - **Claim card** with the details the membership counter asks for
