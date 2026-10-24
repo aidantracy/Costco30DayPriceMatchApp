@@ -1,6 +1,6 @@
 # Spike S-1: Warehouse receipt structure
 
-**Status:** Partly done · **Date:** Oct 23, 2026 · **Answers:** OQ-03 (in part), OQ-09 (preliminary)
+**Status:** Partly done · **Date:** Oct 23, 2026 · **Answers:** OQ-03 (in part), OQ-09
 
 ## Method
 
@@ -67,13 +67,12 @@ All three held on the real receipt inspected.
 
 ## S-3: Sharing from the Costco app
 
-On Android, the receipt view shows the receipt and a **Close** button, with no visible share or download option. If that holds on iOS too, the shared-PDF fallback (US-IMP-03) can't work as designed, and the fallbacks are manual entry and, in Phase 2, receipt photos with OCR. To confirm:
+The Costco app's receipt view shows the receipt and a **Close** button, with no share or download option anywhere (owner confirmed, Oct 23, 2026). The shared-PDF fallback is therefore not possible.
 
-- check the receipt screen's top bar and any long-press menu for a share option;
-- check the same receipt on costco.com in a browser, which may offer print or download.
+**Outcome:** the fallback becomes screenshot import, read with on-device text recognition ([ADR 0006](../adr/0006-receipt-screenshots-on-device-ocr.md)). The parse checks above are what make screenshots dependable: every recognized receipt must match its own item count, subtotal and instant-savings total before it's saved.
 
 ## Next steps
 
 1. Inspect the costco.com Orders & Purchases page in the in-app browser with the owner signed in, and record its structure here.
 2. Find a receipt with a multi-unit line.
-3. Build the invented fixture set (normal, discounted, multi-unit, malformed) for the parser tests.
+3. Build the invented fixture set (normal, discounted, multi-unit, malformed) for the parser tests, as text and as rendered screenshots for spike S-7.
