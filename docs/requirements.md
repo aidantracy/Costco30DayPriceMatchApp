@@ -4,7 +4,7 @@
 
 ## 1. Overview
 
-This document turns the [project charter](project-charter.md) into testable requirements for the Phase 1 MVP: a single-user iOS and Android phone app, backed by a small server API, that syncs the owner's Costco receipts from their own account, checks current prices for every item still in its 30-day price adjustment window, and alerts the owner in the app and with a notification banner when a claim is possible. Sharing a receipt PDF and manual entry remain available as fallbacks. Because Costco's Site Terms prohibit automated access without written consent, the automated features are limited to the owner's own account for personal use (see OQ-02). The charter is the source of truth for scope. Every story, functional requirement (FR) and non-functional requirement (NFR) below traces to a charter scope item, goal, business rule or risk (see the [traceability matrix](#8-traceability-matrix)), and nothing here adds scope the charter marks as Phase 2 or out of scope. Where a requirement seems to need a charter change, it is recorded as an [open question](#9-open-questions) instead.
+This document turns the [project charter](project-charter.md) into testable requirements for the Phase 1 MVP: a single-user iOS and Android phone app, backed by a small server API, that syncs the owner's Costco receipts from their own account, checks current prices for every item still in its 30-day price adjustment window, and alerts the owner in the app and with a notification banner when a claim is possible. Importing receipt screenshots and manual entry remain available as fallbacks. Because Costco's Site Terms prohibit automated access without written consent, the automated features are limited to the owner's own account for personal use (see OQ-02). The charter is the source of truth for scope. Every story, functional requirement (FR) and non-functional requirement (NFR) below traces to a charter scope item, goal, business rule or risk (see the [traceability matrix](#8-traceability-matrix)), and nothing here adds scope the charter marks as Phase 2 or out of scope. Where a requirement seems to need a charter change, it is recorded as an [open question](#9-open-questions) instead.
 
 **Conventions**
 
@@ -14,7 +14,7 @@ This document turns the [project charter](project-charter.md) into testable requ
 - "Channel" is either `warehouse` or `online` (BR-3).
 - "Costco connection" means the signed-in Costco session the app keeps on the Owner's phone. "App account" means the Owner's account with this app's own server. They are separate sign-ins.
 - "Notify" means a push notification banner on the Owner's phone, falling back to email when push permission is off or delivery fails (FR-19).
-- "Sync" and "price check" are the automated sources; "fallback" means a shared receipt PDF or manual entry.
+- "Sync" and "price check" are the automated sources; "fallback" means a receipt screenshot import or manual entry.
 - All example data in this document is fictional.
 
 ## 2. Personas
@@ -60,14 +60,17 @@ As the Owner, I want my online orders and warehouse receipts pulled from my Cost
 - **Given** a receipt that shows payment card digits (even masked), **when** it is synced, **then** no card digits are kept (NFR-03).
 - **Given** a sync, **when** it finishes, **then** only the purchase fields listed above reach the app's server; the Costco session and the raw pages it read stay on the phone (NFR-04).
 
-#### US-IMP-03 · Share a receipt PDF as a fallback · Must
+#### US-IMP-03 · Import receipt screenshots as a fallback · Must
 
-As the Owner, I want to share a warehouse receipt PDF from the Costco app into this app, so that I can log a trip myself whenever I prefer to or sync isn't working.
+As the Owner, I want to upload screenshots of a receipt from the Costco app, so that I can log a trip myself whenever I prefer to or sync isn't working, and see right away whether anything on it is already cheaper.
 
-- **Given** the Owner is signed in to the app on iOS or Android, **when** they share a receipt PDF from the Costco app through the system share sheet, **then** this app appears as a share target and the import starts without any further form to fill in (see OQ-09).
-- **Given** a receipt PDF saved to the phone's files, **when** the Owner picks it from inside the app, **then** it is imported the same way.
-- **Given** a valid receipt PDF, **when** it is parsed successfully, **then** purchases are created exactly as in US-IMP-02, with channel `warehouse`.
-- **Given** a file that is not a PDF, exceeds the size or page limits, or fails parsing, **when** it is shared or picked, **then** the Owner sees a clear message and the file goes to the review queue or is rejected as described in NFR-05 and US-IMP-06.
+- **Given** the Owner chooses "Add receipt from screenshots", **when** they pick one or more screenshots from the photo library, or share them to the app from the system share sheet, **then** the app reads their text on the phone and builds one receipt from all of them, in the order picked (see OQ-09 and ADR 0006).
+- **Given** screenshots that overlap because the receipt was scrolled between them, **when** they are combined, **then** lines repeated across screenshots are counted once.
+- **Given** the text is read and all three parse checks pass (item count, subtotal and instant savings match the receipt's totals), **when** the import finishes, **then** purchases are created exactly as in US-IMP-02, with channel `warehouse`, and the Owner sees a summary of what was added.
+- **Given** a parse check fails, **when** the receipt is read, **then** the Owner sees the lines that were read next to the total they don't match, can correct an item number, description or price, and can save only once the checks pass, or send the receipt to the review queue.
+- **Given** purchases are created from screenshots, **when** the import finishes, **then** the app immediately compares them with the latest recorded prices and shows any items that are already cheaper, with their claim cards (FR-32).
+- **Given** a file that isn't an image, is over the size limit, or has no readable receipt text, **when** it is picked, **then** the Owner sees a clear message and nothing is imported (NFR-05).
+- **Given** any screenshot import, **then** the screenshots are never uploaded, the app's copies are deleted once the receipt is imported or resolved (NFR-13), and the originals in the photo library are left alone.
 
 #### US-IMP-04 · Enter a purchase by hand · Must
 
@@ -82,18 +85,18 @@ As the Owner, I want to enter a purchase manually, so that I can track paper rec
 
 As the Owner, I want the app to recognize a purchase it already has, however it arrived, so that I never get double-counted purchases or duplicate alerts.
 
-- **Given** an online order already tracked, **when** sync, a shared PDF or a manual entry brings in the same order number, **then** no new purchases are created.
-- **Given** a warehouse receipt already tracked, **when** it arrives again by sync or by sharing, **then** no new purchases are created; the receipt is identified by its transaction identifier (exact fields confirmed in Design, see OQ-03), and a shared file also by its hash.
+- **Given** an online order already tracked, **when** sync, a screenshot import or a manual entry brings in the same order number, **then** no new purchases are created.
+- **Given** a warehouse receipt already tracked, **when** it arrives again by sync or by screenshots, **then** no new purchases are created; the receipt is identified by its warehouse, terminal, transaction number and date (see the S-1 spike).
 - **Given** a manual entry that matches an existing purchase on item number, purchase date, price paid and channel, **when** it is submitted, **then** the Owner is warned and must confirm before it is saved.
 
 #### US-IMP-06 · Never lose a purchase that fails to parse · Must
 
 As the Owner, I want anything the app can't fully read to land in a review queue, so that a purchase is never silently dropped.
 
-- **Given** a synced receipt or shared PDF that fails parsing entirely, **when** processing finishes, **then** a review-queue entry is created with the reason, the parser version, and the date, and the Owner is notified.
+- **Given** a synced receipt or screenshot import that fails parsing entirely, **when** processing finishes, **then** a review-queue entry is created with the reason, the parser version, and the date, and the Owner is notified.
 - **Given** a receipt where some lines parse and some don't, **when** processing finishes, **then** the parsed lines are saved as purchases and each unparsed line appears in the review queue.
 - **Given** a review-queue entry, **when** the Owner opens it, **then** they can complete it as a manual entry (US-IMP-04) or dismiss it, and the entry is closed either way.
-- **Given** any synced receipt or shared PDF, **when** processing ends, **then** it has produced at least one purchase, a duplicate notice, or a review-queue entry (NFR-15).
+- **Given** any synced receipt or screenshot import, **when** processing ends, **then** it has produced at least one purchase, a duplicate notice, or a review-queue entry (NFR-15).
 
 #### US-IMP-07 · Correct or remove a purchase · Should
 
@@ -118,7 +121,7 @@ As the Owner, I want to see how many days are left to claim each item, so that I
 
 As the Owner, I want every purchase tagged as warehouse or online, so that prices are only compared within the same channel and the right claim path is shown.
 
-- **Given** a purchase from sync, **then** its channel comes from the source (online order or warehouse receipt); from a shared PDF, `warehouse`; from manual entry, the channel the Owner chose.
+- **Given** a purchase from sync, **then** its channel comes from the source (online order or warehouse receipt); from screenshots, `warehouse`; from manual entry, the channel the Owner chose.
 - **Given** a warehouse purchase and an online current price for the same item, **when** prices are compared, **then** no alert is raised (BR-3).
 
 #### US-TRK-03 · Exclude ineligible items · Must
@@ -196,7 +199,7 @@ As the Owner, I want a reminder a few days before an item's window ends, so that
 As the Owner, I want to know when sync or price checks fail, so that I can reconnect or switch to the fallbacks before I miss a claim.
 
 - **Given** the Costco session has expired or been signed out by Costco, **when** the next sync tries to run, **then** the Owner is notified within 24 hours and the home screen shows a "Reconnect Costco" banner until they reconnect or dismiss it.
-- **Given** sync or price checks fail for a configured number of runs in a row (default 3), or Costco shows a bot check or verification challenge, **when** the threshold is reached, **then** the Owner is notified once with the reason, and the home screen offers the fallbacks: share a receipt PDF or enter purchases and prices by hand.
+- **Given** sync or price checks fail for a configured number of runs in a row (default 3), or Costco shows a bot check or verification challenge, **when** the threshold is reached, **then** the Owner is notified once with the reason, and the home screen offers the fallbacks: import receipt screenshots or enter purchases and prices by hand.
 - **Given** a later sync or check succeeds, **then** the banner clears on its own.
 
 ### 3.5 CLM — Claims
@@ -261,10 +264,10 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | FR-03 | Sync the Costco account's online order and warehouse receipt history from the phone on app open, on pull to refresh, and during background refresh when the operating system allows it; the first sync covers at least the configured window length. | US-IMP-02 |
 | FR-04 | Turn each synced or shared receipt into one purchase per line item (item number, description, quantity, unit price paid, purchase date, channel, and order number or warehouse number and receipt identifier), discarding any payment card digits. | US-IMP-02, US-IMP-03 |
 | FR-05 | Apply discount and instant-savings lines to the price paid of the item they belong to. | US-IMP-02, US-IMP-03 |
-| FR-06 | Accept a receipt PDF through the iOS and Android share sheet and an in-app file picker. | US-IMP-03 |
+| FR-06 | Accept receipt screenshots from the photo picker and the iOS and Android share sheet, read their text on the phone, merge overlapping screenshots into one receipt, run the parse checks, and let the Owner correct lines before saving. | US-IMP-03 |
 | FR-07 | Provide a manual purchase form with validation of required fields, non-negative prices and non-future dates. | US-IMP-04 |
-| FR-08 | Detect duplicate purchases across sync, shared PDFs and manual entry by order number, receipt transaction identifier and file hash, and warn on manual entries matching an existing purchase. | US-IMP-05 |
-| FR-09 | Place any synced receipt, shared PDF or line that fails parsing in a review queue with reason, parser version and date, and notify the Owner. | US-IMP-06 |
+| FR-08 | Detect duplicate purchases across sync, screenshot imports and manual entry by order number and receipt identifier, and warn on manual entries matching an existing purchase. | US-IMP-05 |
+| FR-09 | Place any synced receipt, screenshot import or line that fails parsing in a review queue with reason, parser version and date, and notify the Owner. | US-IMP-06 |
 | FR-10 | Let the Owner resolve a review-queue entry as a manual purchase or dismiss it. | US-IMP-06 |
 | FR-11 | Let the Owner edit and delete purchases, recalculating windows and alerts, keeping savings-log entries for claimed or refunded purchases, and never re-creating a deleted purchase on a later sync. | US-IMP-07 |
 | FR-12 | Calculate each purchase's last eligible date as purchase date plus the configured window length, and each flag's claim deadline as the earlier of that date and the promotion end date when there is one; mark purchases past their last eligible date as expired. | US-TRK-01 |
@@ -286,6 +289,7 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | FR-28 | Store the owning user ID on every user record and filter every read and write by the signed-in user's ID. | US-ACC-02 |
 | FR-29 | Register the phone for push notifications after the Owner grants permission, and remove the registration on sign-out. | US-ALR-01, US-ACC-01 |
 | FR-30 | On sign-out, delete app session tokens, the Costco session and cached purchase data from the phone, and revoke the app session on the server. | US-ACC-01 |
+| FR-32 | When purchases are created by any import, compare them with the latest recorded prices for the same item and channel within their windows, flag any that are already cheaper, and show them in the import summary. | US-IMP-02, US-IMP-03, US-IMP-04 |
 | FR-31 | Let automated sources (sync and automatic price checks) be switched on or off per account in server configuration, with every new account starting with them off. | US-IMP-01, US-ACC-02 |
 
 ## 5. Non-functional requirements
@@ -296,7 +300,7 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | NFR-02 | Security | The Costco session (cookies or tokens) stays on the phone, only in the iOS Keychain or Android Keystore, and never appears in logs, backups to the app's server, or crash reports. | Device storage review against MASVS; log and crash-report scan in Testing. | Risk "The Costco session stored on the phone is stolen or misused" |
 | NFR-03 | Security | No payment card numbers are stored. Card digits on a receipt (even masked) are discarded during parsing. | Fixture test: parsed output of a fake receipt containing masked card digits has no card field or value. | Charter constraints |
 | NFR-04 | Privacy | Only the purchase fields listed in FR-04 reach the app's server. Raw account pages read during sync are parsed on the phone and never uploaded. | Contract test on the upload payload schema; network inspection during sync. | Risk "Receipt data leaks" |
-| NFR-05 | Security | Shared or picked files must be PDFs (checked by content, not extension), at most 5 MB and 10 pages, and are parsed in an isolated process with a 10-second time limit, no network access, and no execution of embedded scripts or attachments. Pages read during sync and price checks are parsed as data; no links in them are followed beyond the order, receipt and product pages the app needs. | Tests with oversized, renamed, malformed and script-bearing fake files. | Risk "Spoofed or malicious inbound emails and PDFs" |
+| NFR-05 | Security | Screenshots must be images (PNG, JPEG or HEIC, checked by content, not extension), at most 10 MB each and 10 per receipt. Text recognition runs on the phone with no network calls and stops after 20 seconds. Pages read during sync and price checks are parsed as data; no links in them are followed beyond the order, receipt and product pages the app needs. | Tests with oversized, renamed, malformed and non-receipt images. | Risk "Spoofed or malicious inbound emails and PDFs" |
 | NFR-06 | Security | Secrets (keys, push and email credentials) live only in environment configuration. `.env` files are never committed and secret scanning runs on the repository. | Secret scan passes on every commit; `.env.example` holds placeholders only. | Charter vision ("secrets in configuration"); README principles |
 | NFR-07 | Security | The backend API meets OWASP Application Security Verification Standard (ASVS) Level 1, and the phone app meets the OWASP Mobile Application Security Verification Standard (MASVS) baseline (MAS-L1 testing profile). | ASVS L1 and MASVS checklists completed in the Testing phase with every item passed or justified as not applicable. | Charter risks; README principles |
 | NFR-08 | Security | All API traffic uses TLS 1.2 or later, and the app refuses plain HTTP. App access tokens are short-lived (15 minutes) with rotating refresh tokens that the server can revoke, kept only in the Keychain or Keystore. | Automated tests for token expiry, refresh rotation and revocation; storage review against MASVS. | US-ACC-01 |
@@ -304,9 +308,9 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | NFR-10 | Security / Privacy | Every read and write is scoped to the signed-in user (least privilege). | Two-account authorization tests on every endpoint return "not found" for another user's records. | US-ACC-02; charter vision |
 | NFR-11 | Privacy | Purchase data, prices, claims and stored import files are encrypted at rest on the server. Data cached on the phone uses the platform's encrypted storage (iOS Data Protection, Android encrypted storage). | Server encryption settings documented in Design and verified at deployment; device storage reviewed against MASVS. | Risk "Receipt data leaks" |
 | NFR-12 | Privacy | No real receipts, account pages or personal data are committed. Test fixtures use invented data only, modeled on real structure. | Pre-commit PII scan; fixture review in every PR touching parsers. | Charter risks; README principles |
-| NFR-13 | Privacy | Shared PDFs are deleted once their items are imported or resolved from the review queue, or after 30 days, whichever comes first. Logs never contain receipt contents, passwords, or app or Costco session tokens. | Retention job test; log review in Testing. | Risk "Receipt data leaks" |
+| NFR-13 | Privacy | Receipt screenshots are never uploaded, and the app's copies are deleted once their items are imported or resolved from the review queue, or after 30 days, whichever comes first. Logs never contain receipt contents, passwords, or app or Costco session tokens. | Retention job test; log review in Testing. | Risk "Receipt data leaks" |
 | NFR-14 | Privacy | Notification banners and email alerts show only the item description, the amount saved and the claim deadline: no receipt contents, card data, membership number or order number. Details load after the app opens and the session is checked. | Payload fixture test. | Risk "Purchase details appear in lock-screen notifications" |
-| NFR-15 | Reliability | No purchase is silently dropped. Every synced receipt or shared PDF ends as tracked purchases, a duplicate notice, or a review-queue entry. | 100% of fixture imports, including malformed ones, end in one of those three states. | Risk "Costco changes its site or blocks automated access" |
+| NFR-15 | Reliability | No purchase is silently dropped. Every synced receipt or screenshot import ends as tracked purchases, a duplicate notice, or a review-queue entry. | 100% of fixture imports, including malformed ones, end in one of those three states. | Risk "Costco changes its site or blocks automated access" |
 | NFR-16 | Reliability | Sync, imports and price checks are idempotent: re-running them never creates duplicate purchases, prices or alerts. Scheduled jobs catch up after a missed run. | Replay tests; skipped-day test for reminders. | US-IMP-05; US-ALR-02 |
 | NFR-17 | Reliability | A purchase appears in the app within 24 hours of appearing in the Costco account when the phone is online and background refresh is allowed, and within 60 seconds of opening the app. | Measured over the first month of use (background limits per platform in OQ-11). | Charter goal "Low effort" |
 | NFR-18 | Reliability | Every open, non-excluded purchase is price-checked at least once every 24 hours, and price-drop alerts are handed to the push service (or email) within 15 minutes of the drop being recorded. | Job logs reviewed in Testing; alert latency measured. | Charter goal "No missed windows"; BR-5 |
@@ -314,13 +318,14 @@ As the Owner, I want to disconnect Costco from the app at any time, so that I st
 | NFR-20 | Reliability | The database is backed up daily, and a restore is tested once before the end of Phase 1. | Backup schedule in Design; restore drill recorded. | Charter goal "Recover money" |
 | NFR-21 | Compliance | Automated sync and price checks run only for the Owner's own account, for personal use (OQ-02), and stay at personal-use volumes: by default no more than one account sync per hour and one price check per item per day, with backoff after errors. The app never solves, bypasses or works around bot checks or verification challenges; it stops and alerts the Owner instead. | Rate limits enforced in code and covered by tests; challenge-handling test. | Risk "Automated access conflicts with Costco's terms of use" |
 | NFR-22 | Maintainability | Business rules and limits (window length, exclusions list, reminder lead time, failure threshold, sync and price-check rates) are configuration, not code. | Changing each value changes behavior with no code change (test). | BR-6, BR-7 |
-| NFR-23 | Maintainability | Parsers for account pages, receipt PDFs and product pages are versioned. Each version has fixture tests with fake data, and every import and price check records the parser version used. | Parser test suite runs in CI; version stored on each record. | Risk "Costco changes its site or blocks automated access" |
+| NFR-23 | Maintainability | Parsers for account pages, receipt screenshots and product pages are versioned. Each version has fixture tests with fake data, and every import and price check records the parser version used. | Parser test suite runs in CI; version stored on each record. | Risk "Costco changes its site or blocks automated access" |
 | NFR-24 | Maintainability | Business-rule logic (windows, comparisons, claim amounts, status changes) is separate from the UI and has at least 90% branch coverage. | Coverage report in CI. | Charter vision ("business rules out of the UI") |
-| NFR-25 | Maintainability | Purchase sources (sync, shared PDF, manual) and price sources (automatic, manual) sit behind common interfaces, so a broken source can be fixed or replaced without changing the rest of the app. | Each source has its own module and contract tests. | Risks "Costco changes its site or blocks automated access" and "Automatic price checks miss warehouse-only prices" |
-| NFR-26 | Usability | Synced purchases need no action from the Owner. Logging one receipt through a fallback takes under 2 minutes. | Median under 2 minutes for shared PDFs over the first month, timed from opening the receipt in the Costco app to purchases saved. | Charter goal "Low effort" |
+| NFR-25 | Maintainability | Purchase sources (sync, screenshots, manual) and price sources (automatic, manual) sit behind common interfaces, so a broken source can be fixed or replaced without changing the rest of the app. | Each source has its own module and contract tests. | Risks "Costco changes its site or blocks automated access" and "Automatic price checks miss warehouse-only prices" |
+| NFR-26 | Usability | Synced purchases need no action from the Owner. Logging one receipt through a fallback takes under 2 minutes. | Median under 2 minutes for screenshot imports over the first month, timed from opening the receipt in the Costco app to purchases saved. | Charter goal "Low effort" |
 | NFR-27 | Usability | The app supports the current and previous major versions of iOS and Android. Every screen works without horizontal scrolling on screens from 360 dp (Android) or 375 pt (iPhone) wide and up, including with larger system text sizes. | Checked on the smallest supported screen of each platform in Testing. | US-CLM-01; US-IMP-03 |
 | NFR-28 | Cost | Phase 1 hosting, push, email and storage run at low or zero cost, preferring free tiers. Any paid service is recorded as a Design decision with its monthly cost. App store developer account fees are the expected fixed cost. | Under $10 a month in total, excluding app store developer fees (OQ-07); reviewed monthly during Phase 1. | Charter constraints |
 | NFR-29 | Compliance | The app uses a generic name and shows that it is not affiliated with Costco. | Disclaimer visible on the sign-in screen, the app's About screen and the README. | Risks "Using the Costco name or logo implies endorsement" and "App store review rejects the app" |
+| NFR-31 | Reliability | Text recognition of receipt screenshots is accurate enough that most imports need no corrections, and a misread can never be saved silently. | At least 95% of invented fixture receipts, rendered as screenshots, pass all three parse checks with no corrections; every failure reaches the correction screen. | Risk "Text recognition misreads item numbers or prices" |
 | NFR-30 | Portability | The iOS and Android apps come from one cross-platform codebase (framework chosen in Design). Phase 1 builds are distributed through TestFlight and Google Play internal testing. | Both builds installable from their test tracks by the end of Phase 1. | Charter vision (phone app); charter scope (test-track install) |
 
 ## 6. Business rules
@@ -378,7 +383,7 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | Charter item | Stories | FRs | NFRs |
 | --- | --- | --- | --- |
 | Scope: automatic receipt sync through a sign-in on the phone | US-IMP-01, US-IMP-02, US-ACC-03 | FR-01 to FR-05 | NFR-01, NFR-02, NFR-04, NFR-17, NFR-21 |
-| Scope: share a receipt PDF (fallback) | US-IMP-03 | FR-04 to FR-06 | NFR-05, NFR-26 |
+| Scope: import receipt screenshots (fallback) | US-IMP-03 | FR-04 to FR-06, FR-32 | NFR-05, NFR-26, NFR-31 |
 | Scope: manual purchase entry (fallback) | US-IMP-04, US-IMP-07 | FR-07, FR-11 | — |
 | Scope: alert when sync or price checks stop, or the session expires | US-ALR-03 | FR-15, FR-21 | NFR-19 |
 | Scope: countdown of days left per window | US-TRK-01, US-TRK-04 | FR-12, FR-15 | NFR-22, NFR-24 |
@@ -403,7 +408,8 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | Risk: automated access conflicts with Costco's terms of use | US-IMP-01, US-PRC-01, US-ALR-03, US-ACC-02 | FR-21, FR-31 | NFR-21 (decision in OQ-02) |
 | Risk: automatic price checks miss warehouse-only prices | US-PRC-01, US-PRC-02, US-ALR-02 | FR-16, FR-17, FR-20 | NFR-25 (and OQ-05) |
 | Risk: the Costco session on the phone is stolen or misused | US-IMP-01, US-ACC-01, US-ACC-03 | FR-01, FR-02, FR-30 | NFR-01, NFR-02, NFR-08 |
-| Risk: spoofed or malicious PDFs | US-IMP-03, US-IMP-06 | FR-06, FR-09 | NFR-05 |
+| Risk: spoofed or malicious files | US-IMP-03, US-IMP-06 | FR-06, FR-09 | NFR-05 |
+| Risk: text recognition misreads item numbers or prices | US-IMP-03 | FR-06 | NFR-31 |
 | Risk: receipt data leaks | US-ACC-01, US-ACC-02 | FR-27, FR-28 | NFR-04, NFR-06 to NFR-13 |
 | Risk: Costco changes the policy | US-TRK-01, US-TRK-03 | FR-12, FR-14 | NFR-22 |
 | Risk: implied endorsement | — | — | NFR-29 |
@@ -416,13 +422,13 @@ Every charter scope item, goal, constraint and risk that the MVP addresses, mapp
 | --- | --- | --- | --- | --- |
 | OQ-01 | Do the charter's rules BR-1 to BR-8 match Costco's official price adjustment policy? | Project owner | **Resolved Oct 21, 2026** | The owner confirmed the official text. The charter rules were updated and BR-9 added (findings below). |
 | OQ-02 | Do Costco's terms of use allow a member's own app to read their order history and Costco's product pages automatically, and does that change for multiple users or a paid product? | Project owner | **Resolved Oct 21, 2026** | No. The Site Terms prohibit it without written consent (findings below). Decision: automation for the owner's own account and personal use only. Recheck the terms at the start of each phase. |
-| OQ-03 | What is the exact structure of the Costco account's order and warehouse receipt pages, the receipt PDF, and a product page, including the fields that identify a receipt uniquely? | Project owner | Design (parser design and duplicate key) | In the Costco app, receipts are under Account → Orders & Purchases → Warehouse tab (online orders on the neighboring tab); confirm the equivalent pages on costco.com, which the in-app browser uses. Inspect real examples locally. **Never commit real pages, receipts or screenshots.** Build invented fixtures with the same structure. |
+| OQ-03 | What is the exact structure of the Costco account's order and warehouse receipt pages, a receipt screenshot, and a product page, including the fields that identify a receipt uniquely? | Project owner | Design (parser design and duplicate key) | In the Costco app, receipts are under Account → Orders & Purchases → Warehouse tab (online orders on the neighboring tab); confirm the equivalent pages on costco.com, which the in-app browser uses. Inspect real examples locally. **Never commit real pages, receipts or screenshots.** Build invented fixtures with the same structure. |
 | OQ-04 | Is day 30 itself eligible (inclusive counting), and whose time zone defines "today" for the warehouse channel? | Project owner | **Resolved Oct 21, 2026** | Day 30 counts (confirmed by the owner, Oct 21, 2026). Default chosen for time zones: warehouse purchases use the purchase warehouse's local date; online orders use the Owner's time zone. |
 | OQ-05 | Can warehouse prices be seen online, and do warehouse receipt item numbers match costco.com item numbers? | Project owner | Design | **Mostly answered Oct 21, 2026:** current warehouse deals are listed in the Costco app under Warehouse → Warehouse Savings, and on costco.com through search results filtered to items bought in the warehouse (`/s?keyword=OFF&dept=All&refinement=buyInWarehouse%3Dtrue`). Still open, to check in Design: whether the listing changes with the selected warehouse, and whether its item numbers match warehouse receipts. Items not covered rely on US-PRC-02 and the reminder in US-ALR-02. |
 | OQ-06 | Should the charter add rules for promotional quantity limits and for claiming promotional items within the promotion dates? | Project owner | **Resolved Oct 21, 2026** | Yes, both are official policy: BR-5 updated and BR-9 added. |
 | OQ-07 | What monthly cost ceiling counts as "low" for Phase 1 hosting, push, email and storage? | Project owner | **Resolved Oct 21, 2026** | Under $10 a month, plus app store developer fees (NFR-28). |
 | OQ-08 | Should price checks run on the phone or on the server? | Project owner | Design | The server is more reliable on a schedule and needs no Costco session for public product pages; the phone keeps all Costco traffic on the member's own connection. Either way NFR-21 applies. |
-| OQ-09 | Can the Costco app share or export a warehouse receipt as a PDF on both iOS and Android, and in what form does it arrive? | Project owner | Design | US-IMP-03 depends on it. Check on both platforms with a real receipt, committing nothing from it. If a platform can't share a PDF, record the gap; manual entry remains. |
+| OQ-09 | Can the Costco app share or export a warehouse receipt as a PDF on both iOS and Android, and in what form does it arrive? | Project owner | **Resolved Oct 23, 2026** | No: the Android receipt view has no share or download option (owner confirmed). The fallback is now screenshot import read on the phone (US-IMP-03, ADR 0006). |
 | OQ-10 | Which push notification service will the backend use: Apple Push Notification service and Firebase Cloud Messaging directly, or a provider in front of both? | Project owner | Design | Must cover iOS and Android, fit NFR-28, and allow minimal payloads (NFR-14). |
 | OQ-11 | How often can each platform run a background sync, and is that enough for NFR-17? | Project owner | Design | iOS schedules background refresh at its own discretion. If background sync is too infrequent, sync on app open and the daily price check carry the load. |
 | OQ-12 | Which public sources of Costco sale prices allow reuse, and in what format? | Project owner | Phase 2 | Carried over from the charter. Could fill the warehouse gap in OQ-05 later. |
