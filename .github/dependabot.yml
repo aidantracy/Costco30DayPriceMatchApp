@@ -4,11 +4,11 @@ updates:
     directory: /app
     schedule:
       interval: weekly
-  - package-ecosystem: uv
-    directory: /api
-    schedule:
-      interval: weekly
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
+    ignore:
+      - dependency-name: "react"
+      - dependency-name: "react-native"
+      - dependency-name: "expo*"
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
