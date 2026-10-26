@@ -10,4 +10,4 @@ Short investigations run at the start of Implementation to answer the open items
 | S-4 | Background fetch frequency | Not started |
 | S-5 | Push service limits and email provider | Not started |
 | S-6 | Encrypted SQLite on both platforms | Not started |
-| S-7 | On-device text recognition for receipt screenshots | Not started |
+| S-7 | On-device text recognition for receipt screenshots | [Library chosen](s7-text-recognition.md); device test pending |
