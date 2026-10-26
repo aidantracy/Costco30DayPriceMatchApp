@@ -30,6 +30,17 @@
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/**/__fixtures__/**",
+      "!src/**/types.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 90,
+        "lines": 90
+      }
+    }
   }
 }
