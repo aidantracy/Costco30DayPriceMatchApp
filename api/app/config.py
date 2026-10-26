@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     price_check_max_per_item_per_day: int = Field(default=1, ge=1)
     price_check_allowed_hosts: list[str] = ["www.costco.com"]
 
+    expo_access_token: SecretStr | None = None
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    alert_from_address: str = "alerts@example.com"
+
     login_max_failures: int = Field(default=5, ge=1)
     login_lockout_minutes: int = Field(default=15, ge=1)
 

@@ -113,7 +113,7 @@ def test_refresh_tokens_are_stored_hashed(
 def test_update_time_zone(client: TestClient, owner: User) -> None:
     token = login(client).json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    ok = client.patch("/me", json={"time_zone": "America/Boise"}, headers=headers)
-    assert ok.status_code == 200 and ok.json()["time_zone"] == "America/Boise"
+    ok = client.patch("/me", json={"time_zone": "America/Chicago"}, headers=headers)
+    assert ok.status_code == 200 and ok.json()["time_zone"] == "America/Chicago"
     bad = client.patch("/me", json={"time_zone": "Mars/Olympus"}, headers=headers)
     assert bad.status_code == 422
