@@ -20,7 +20,8 @@ from app.db.models import (
     RunKind,
     RunStatus,
 )
-from app.domain.health import ErrorCode, Issue, Run, assess
+from app.domain.health import ErrorCode, Issue
+from app.services.health import user_issues
 
 router = APIRouter(tags=["support"])
 
@@ -184,25 +185,10 @@ def report_sync_run(body: SyncRunIn, user: CurrentUser, session: SessionDep) -> 
 @router.get("/health")
 def health(user: CurrentUser, session: SessionDep, settings: SettingsDep, now: NowDep) -> HealthOut:
     """Banners for the home screen: reconnect Costco, automation blocked, failing or stale."""
-    issues: list[HealthItem] = []
-    for kind in RunKind:
-        rows = session.scalars(
-            select(AutomationRun)
-            .where(AutomationRun.user_id == user.id, AutomationRun.kind == kind)
-            .order_by(AutomationRun.finished_at.desc())
-            .limit(20)
-        ).all()
-        runs = [
-            Run(
-                succeeded=r.status is RunStatus.SUCCESS,
-                error_code=ErrorCode(r.error_code) if r.error_code else None,
-                finished_at=r.finished_at or r.started_at,
-            )
-            for r in rows
-        ]
-        issue = assess(runs, now, settings.health_failure_threshold)
-        if issue is not None:
-            issues.append(HealthItem(kind=kind, issue=issue, since=runs[0].finished_at))
+    issues = [
+        HealthItem(kind=i.kind, issue=i.issue, since=i.since)
+        for i in user_issues(session, user, now, settings.health_failure_threshold)
+    ]
     unresolved = len(
         session.scalars(
             select(ReviewItem.id).where(

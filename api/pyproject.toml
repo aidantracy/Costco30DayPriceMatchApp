@@ -13,13 +13,13 @@ dependencies = [
     "psycopg[binary]",
     "argon2-cffi",
     "pyjwt",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]
 dev = [
     "pytest",
     "pytest-cov",
-    "httpx",
     "ruff",
     "mypy",
     "testcontainers[postgres]>=4.15.0",
