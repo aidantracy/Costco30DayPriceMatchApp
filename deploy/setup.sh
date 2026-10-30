@@ -18,13 +18,21 @@ if ! gcloud artifacts repositories describe "$REPO" --project "$PROJECT_ID" \
   gcloud artifacts repositories create "$REPO" --project "$PROJECT_ID" --location "$REGION" \
     --repository-format docker --description "Price match API images"
 fi
-# Keep only the 5 newest images so storage stays inside the free tier.
+# Keep only the 3 newest images so storage stays inside the 0.5 GB free allowance.
 cat >/tmp/price-match-cleanup.json <<'JSON'
-[{"name": "keep-recent", "action": {"type": "Keep"}, "mostRecentVersions": {"keepCount": 5}},
+[{"name": "keep-recent", "action": {"type": "Keep"}, "mostRecentVersions": {"keepCount": 3}},
  {"name": "delete-old", "action": {"type": "Delete"}, "condition": {"tagState": "any", "olderThan": "1d"}}]
 JSON
 gcloud artifacts repositories set-cleanup-policies "$REPO" --project "$PROJECT_ID" \
   --location "$REGION" --policy /tmp/price-match-cleanup.json >/dev/null
+
+# New projects build with the default compute service account, which may lack Cloud Build
+# permissions; grant them so `gcloud builds submit` works.
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+COMPUTE_SA="${PROJECT_NUMBER}-compute"
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member "serviceAccount:${COMPUTE_SA}@developer.gserviceaccount.com" \
+  --role roles/cloudbuild.builds.builder --condition None >/dev/null
 
 for sa in "$RUNTIME_SA" "$SCHEDULER_SA"; do
   if ! gcloud iam service-accounts describe "${sa}@${PROJECT_ID}.iam.gserviceaccount.com" \

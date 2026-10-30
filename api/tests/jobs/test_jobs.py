@@ -243,8 +243,8 @@ def test_cli_runs_each_job(monkeypatch: pytest.MonkeyPatch, session: Session) ->
     monkeypatch.setattr(cli.reminders, "run", fake("reminders", 1))
     monkeypatch.setattr(cli.health, "run", fake("health", 0))
 
-    for job in ("retention", "reminders", "health"):
+    for job in ("retention", "reminders", "health", "daily"):
         assert cli.main([job]) == 0
-    assert calls == ["retention", "reminders", "health"]
+    assert calls == ["retention", "reminders", "health", "retention", "reminders"]
     with pytest.raises(SystemExit):
         cli.main(["nope"])

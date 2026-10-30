@@ -28,10 +28,11 @@ done
 ENV_VARS="APP_ENV=production${EXTRA_ENV:+,${EXTRA_ENV}}"   # e.g. EXTRA_ENV=SMTP_HOST=smtp.example.com
 
 # name|command|schedule (cron, in TIME_ZONE)|max retries
+# Two schedules only: Cloud Scheduler's free allowance is three jobs per billing account.
+# "daily" runs retention then reminders (and price checks once they exist).
 JOBS=(
-  "price-match-reminders|python,-m,app.jobs,reminders|7 8 * * *|1"
+  "price-match-daily|python,-m,app.jobs,daily|7 8 * * *|1"
   "price-match-health|python,-m,app.jobs,health|13 */6 * * *|0"
-  "price-match-retention|python,-m,app.jobs,retention|41 3 * * *|1"
 )
 
 build() {

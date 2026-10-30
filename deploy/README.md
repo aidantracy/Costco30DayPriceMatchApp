@@ -8,18 +8,18 @@ mounted as environment variables; nothing secret is stored in the repository or 
 | --- | --- | --- |
 | Cloud Run service `price-match-api` | `uvicorn app.main:app` | On request; scales to zero |
 | Cloud Run job `price-match-migrate` | `alembic upgrade head` | Every deploy, before the service |
-| Cloud Run job `price-match-reminders` | `python -m app.jobs reminders` | Daily 08:07 |
+| Cloud Run job `price-match-daily` | `python -m app.jobs daily` (retention, then reminders) | Daily 08:07 |
 | Cloud Run job `price-match-health` | `python -m app.jobs health` | Every 6 hours |
-| Cloud Run job `price-match-retention` | `python -m app.jobs retention` | Daily 03:41 |
 
-Times are in `TIME_ZONE` (default `America/Denver`). The price-check job is added once spike S-2 is done.
+Times are in `TIME_ZONE` (default `America/Denver`). Price checks will join the daily job once
+spike S-2 is done, so there are never more than two schedules.
 
 ## Before the first deploy
 
 1. Create a Google Cloud project with billing enabled, and set a budget alert (Billing → Budgets & alerts) at the project's monthly ceiling.
 2. Create a Neon project and copy its connection string. Change the scheme to `postgresql+psycopg://` and keep `?sslmode=require`.
 3. Install the Google Cloud CLI and sign in: `gcloud auth login`.
-4. From the repository root, run the one-time setup. It enables the APIs, creates the image repository and two service accounts, and prompts for each secret without echoing it:
+4. From the repository root (Google Cloud Shell works well: gcloud, git and Python are preinstalled), run the one-time setup. It enables the APIs, lets Cloud Build use the default compute account, creates the image repository and two service accounts, and prompts for each secret without echoing it:
 
    ```bash
    PROJECT_ID=my-project bash deploy/setup.sh
@@ -62,8 +62,20 @@ DATABASE_URL='<neon url>' APP_ENV=production TOKEN_SIGNING_KEY='<key>' \
 
 ## Cost
 
-Sized to stay under the project ceiling (under $10 a month): the service scales to zero with at
-most 2 instances, jobs run a few minutes a day, Artifact Registry keeps only the 5 newest
-images, and Neon's free plan covers the database. Cloud Scheduler bills per job beyond the
-free allowance, so the fourth schedule (price checks) may add a few cents a month. Check
-current Google Cloud and Neon pricing before relying on these numbers.
+The goal is $0 a month for one person's use. Everything below stays inside the free allowances
+(check current Google Cloud and Neon pricing before relying on these numbers):
+
+| Service | Free allowance | Expected use |
+| --- | --- | --- |
+| Cloud Run (service + jobs) | 2M requests; 180,000 vCPU-seconds a month | Hundreds of requests; a few job minutes a day |
+| Cloud Scheduler | 3 jobs per billing account | 2 (daily, health) |
+| Artifact Registry | 0.5 GB | 3 newest images kept (cleanup policy) |
+| Cloud Build | 2,500 build-minutes a month | A few minutes per deploy |
+| Secret Manager | 6 active versions; 10,000 accesses a month | 2–4 secrets; a few hundred accesses |
+| Cloud Logging | 50 GiB a month | Well under 1 GiB |
+| Neon Free | 1 GB storage; 100 CU-hours a month; scales to zero | Tens of MB; under 20 CU-hours |
+| Expo push | Free | Daily alerts |
+
+Google Cloud needs a billing account with a card even when usage is free, so set a budget alert.
+The Android app is installed directly (no Play Store fee); iOS would need the $99/year Apple
+Developer Program.
