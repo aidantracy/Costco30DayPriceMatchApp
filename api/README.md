@@ -10,6 +10,17 @@ uv run mypy app
 uv run uvicorn app.main:app --reload
 ```
 
+## Account setup
+
+Phase 1 has a single account, created once from the command line (there is no public sign-up):
+
+```bash
+uv run python -m app.cli create-owner --email you@example.com      # prompts for a 12+ character password
+uv run python -m app.cli sign-out-everywhere --email you@example.com  # e.g. after losing a phone
+```
+
+Outside development, `TOKEN_SIGNING_KEY` must be at least 32 characters or the API won't start.
+
 ## Database
 
 Local Postgres: `docker compose up -d db` from the repository root, then copy `.env.example` to `.env`.
