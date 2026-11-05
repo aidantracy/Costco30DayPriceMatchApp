@@ -73,4 +73,14 @@ fi
 create_secret expo-access-token "Expo access token (optional)" ""
 create_secret smtp-password "SMTP password (optional)" ""
 
+# Confirm the runtime account can read the required secrets before calling setup done.
+for name in database-url token-signing-key; do
+  if ! gcloud secrets get-iam-policy "$name" --project "$PROJECT_ID" \
+    --flatten bindings --filter "bindings.role=roles/secretmanager.secretAccessor" \
+    --format 'value(bindings.members)' | grep -q "${RUNTIME_SA}@"; then
+    echo "The runtime account can't read secret '${name}'. Re-run this script." >&2
+    exit 1
+  fi
+done
+
 echo "Setup complete. Next: PROJECT_ID=${PROJECT_ID} bash deploy/deploy.sh"

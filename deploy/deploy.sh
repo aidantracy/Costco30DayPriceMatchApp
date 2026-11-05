@@ -25,9 +25,17 @@ for pair in "${OPTIONAL_SECRETS[@]}"; do
     SECRETS+=",${pair}:latest"
   fi
 done
+# Fail early with a clear message instead of a permission error halfway through.
+for name in database-url token-signing-key; do
+  if ! gcloud secrets describe "$name" --project "$PROJECT_ID" >/dev/null 2>&1; then
+    echo "Secret '${name}' not found. Run first: PROJECT_ID=${PROJECT_ID} bash deploy/setup.sh" >&2
+    exit 1
+  fi
+done
 ENV_VARS="APP_ENV=production${EXTRA_ENV:+,${EXTRA_ENV}}"   # e.g. EXTRA_ENV=SMTP_HOST=smtp.example.com
 
 # name|command|schedule (cron, in TIME_ZONE)|max retries
+# Args are passed as --args=... because values starting with "-" would be read as flags.
 # Two schedules only: Cloud Scheduler's free allowance is three jobs per billing account.
 # "daily" runs retention then reminders (and price checks once they exist).
 JOBS=(
@@ -64,7 +72,7 @@ jobs() {
     echo "==> Deploying job ${name}"
     gcloud run jobs deploy "$name" --project "$PROJECT_ID" --region "$REGION" \
       --image "$IMAGE" --service-account "$RUNTIME_SA" \
-      --command "${args%%,*}" --args "${args#*,}" \
+      --command "${args%%,*}" --args="${args#*,}" \
       --set-secrets "$SECRETS" --set-env-vars "$ENV_VARS" \
       --max-retries "$retries" --task-timeout 600s
     gcloud run jobs add-iam-policy-binding "$name" --project "$PROJECT_ID" --region "$REGION" \
