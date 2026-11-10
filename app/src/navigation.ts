@@ -1,6 +1,7 @@
 export type PurchasesStackParams = {
   Purchases: undefined;
   AddPurchase: undefined;
+  ImportReceipt: undefined;
 };
 
 export type DropsStackParams = {

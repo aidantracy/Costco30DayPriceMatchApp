@@ -1,6 +1,6 @@
 # Spike S-7: On-device text recognition for receipt screenshots
 
-**Status:** Library chosen; device test pending · **Date:** Oct 24, 2026 · **Supports:** ADR 0006, US-IMP-03, NFR-31
+**Status:** Revised Nov 9, 2026: in-repo ML Kit module; device test pending · **Date:** Oct 24, 2026 · **Supports:** ADR 0006, US-IMP-03, NFR-31
 
 ## Question
 
@@ -23,6 +23,12 @@ A receipt row prints in columns: item number, description, price, tax flag. Text
 Use **`@infinitered/react-native-mlkit-text-recognition`** as the primary engine, because its element boxes let the app rebuild receipt rows. Keep `expo-text-extractor` as the fallback if the first doesn't build on Expo SDK 58. The parser accepts both shapes: pieces with boxes are grouped into rows by position, and plain strings are taken as rows in order (`app/src/parsing/rows.ts`).
 
 Both run entirely on the phone, so screenshots and recognized text never leave it (NFR-05, NFR-13).
+
+## Revision (Nov 9, 2026)
+
+`@infinitered/react-native-mlkit-text-recognition` was last published in Nov 2025 and its Android build file uses an older setup (its own Kotlin `buildscript` and `lintOptions`). Expo SDK 58 builds with Android Gradle Plugin 9.2, so it may not build. Instead, the app ships a small in-repo Expo module, `app/modules/receipt-text`, written on SDK 58's own module template. It calls Google ML Kit's on-device Latin text recognizer (`com.google.mlkit:text-recognition`) directly and returns each recognized line with its box. It's Android only, matching the target phone. Expo autolinking picks it up from `app/modules`.
+
+In Expo Go the module is missing; the import screen says a development build is needed instead of crashing.
 
 ## What has been verified
 

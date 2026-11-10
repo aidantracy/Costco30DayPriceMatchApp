@@ -5,6 +5,8 @@ import type {
   Flag,
   FlagUpdate,
   ManualPurchaseIn,
+  ReceiptBatchIn,
+  ReceiptBatchOut,
   ManualPurchaseOut,
   Me,
   Purchase,
@@ -130,6 +132,15 @@ export function createApiClient(options: ClientOptions) {
       request<Purchase[]>('GET', `/purchases?status=${status}`),
     addPurchase: (body: ManualPurchaseIn) =>
       request<ManualPurchaseOut>('POST', '/purchases', body),
+    importReceipts: (body: ReceiptBatchIn) =>
+      request<ReceiptBatchOut>('POST', '/purchases/batch', body),
+    /** Report a receipt the phone couldn't read. Only the reason is sent, never the receipt. */
+    reportUnreadable: (reason: string, parserVersion: string) =>
+      request<unknown>('POST', '/review-items', {
+        source: 'screenshot',
+        reason: reason.slice(0, 200),
+        parser_version: parserVersion,
+      }),
     deletePurchase: (id: string, confirm = false) =>
       request<null>('DELETE', `/purchases/${encodeURIComponent(id)}${confirm ? '?confirm=true' : ''}`),
     flags: () => request<Flag[]>('GET', '/flags'),

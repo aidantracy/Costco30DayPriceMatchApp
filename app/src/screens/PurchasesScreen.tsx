@@ -63,7 +63,17 @@ export function PurchasesScreen({ navigation }: Props) {
           <RefreshControl refreshing={refreshing} onRefresh={() => reload('refresh')} />
         }
         ListHeaderComponent={
-          <Button title="Add a purchase" onPress={() => navigation.navigate('AddPurchase')} />
+          <View>
+            <Button
+              title="Import receipt screenshots"
+              onPress={() => navigation.navigate('ImportReceipt')}
+            />
+            <Button
+              title="Add a purchase by hand"
+              variant="secondary"
+              onPress={() => navigation.navigate('AddPurchase')}
+            />
+          </View>
         }
         ListEmptyComponent={
           loading ? undefined : error ? (
@@ -75,7 +85,7 @@ export function PurchasesScreen({ navigation }: Props) {
           ) : (
             <Message
               title="Nothing tracked yet"
-              body="Add a purchase and you'll get an alert if its price drops within 30 days."
+              body="Import a receipt or add a purchase, and you'll get an alert if its price drops within 30 days."
             />
           )
         }
