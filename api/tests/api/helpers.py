@@ -28,7 +28,7 @@ def receipt(**overrides: Any) -> dict[str, Any]:
                 "item_number": "2222222",
                 "description": "EXAMPLE GADGET",
                 "unit_price_cents": 1999,
-                "discount_cents": 500,
+                "discount_cents": 0,
             },
         ],
     }

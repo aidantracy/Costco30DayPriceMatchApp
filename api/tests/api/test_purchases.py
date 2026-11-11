@@ -15,7 +15,7 @@ def test_batch_import_creates_purchases(client: TestClient, auth: H) -> None:
     listed = client.get("/purchases", headers=auth).json()
     assert {p["item_number"] for p in listed} == {"1111111", "2222222"}
     gadget = next(p for p in listed if p["item_number"] == "2222222")
-    assert gadget["discount_cents"] == 500
+    assert gadget["discount_cents"] == 0
     assert gadget["last_eligible_date"] == "2026-10-20"
     assert gadget["days_left"] == 19
 

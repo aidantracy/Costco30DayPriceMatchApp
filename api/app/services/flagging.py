@@ -12,13 +12,20 @@ from app.domain import models as dm
 from app.domain.models import FlagStatus
 
 
+def paid_per_unit(p: Purchase) -> int:
+    """What one unit actually cost: printed unit price less its share of the line's instant
+    savings (FR-05). Rounded down, so a refund is never overstated."""
+    line = p.unit_price_cents * p.quantity - p.discount_cents
+    return max(0, line // p.quantity)
+
+
 def _to_domain(p: Purchase) -> dm.Purchase:
     return dm.Purchase(
         item_number=p.item_number,
         description=p.description,
         channel=p.channel,
         quantity=p.quantity,
-        unit_price_cents=p.unit_price_cents,
+        unit_price_cents=paid_per_unit(p),
         purchase_date=p.purchase_date,
     )
 
