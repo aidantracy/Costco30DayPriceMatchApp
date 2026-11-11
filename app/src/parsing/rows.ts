@@ -3,8 +3,10 @@ import type { OcrElement } from './types';
 /**
  * Rebuilds receipt rows from recognized text. Text engines often split one printed
  * row into separate pieces per column (item number, description, price), so pieces
- * whose vertical centers fall within half a line height of each other are joined,
- * left to right. Pieces without a box are kept as their own rows, in order.
+ * whose vertical centers fall within three quarters of a line height of the row are
+ * joined, left to right. That is wide enough for an item number printed between the two
+ * lines of a wrapped description, and narrow enough to keep neighboring rows apart (rows
+ * are about two line heights apart). Pieces without a box are kept as rows, in order.
  */
 export function assembleRows(elements: OcrElement[]): string[] {
   const boxed = elements.filter((e) => e.frame && e.text.trim());
@@ -15,7 +17,7 @@ export function assembleRows(elements: OcrElement[]): string[] {
 
   const heights = boxed.map((e) => e.frame!.bottom - e.frame!.top).sort((a, b) => a - b);
   const medianHeight = heights[Math.floor(heights.length / 2)] || 1;
-  const tolerance = medianHeight / 2;
+  const tolerance = medianHeight * 0.75;
 
   const sorted = [...boxed].sort((a, b) => center(a) - center(b));
   const rows: OcrElement[][] = [];

@@ -182,7 +182,7 @@ function Review(props: {
           {id ? `Warehouse #${Number(id.warehouse)} · ${shortDate(id.date)}` : 'Receipt'}
         </Text>
         <Text style={styles.body}>
-          {items.length} item{items.length === 1 ? '' : 's'} ·{' '}
+          {units(items)} item{units(items) === 1 ? '' : 's'} ·{' '}
           {formatCents(items.reduce((s, i) => s + i.pricePaidCents, 0))} after instant savings
         </Text>
         {issues.length === 0 ? (
@@ -238,6 +238,10 @@ function Review(props: {
   );
 }
 
+function units(items: ReceiptItem[]): number {
+  return items.reduce((s, i) => s + i.quantity, 0);
+}
+
 function ItemRow(props: {
   item: ReceiptItem;
   open: boolean;
@@ -259,6 +263,9 @@ function ItemRow(props: {
             </Text>
             <Text style={styles.meta}>
               #{item.itemNumber}
+              {item.quantity > 1
+                ? ` · ${item.quantity} × ${formatCents(Math.round(item.linePriceCents / item.quantity))}`
+                : ''}
               {item.discountCents ? ` · ${formatCents(item.discountCents)} instant savings` : ''}
             </Text>
           </View>
@@ -273,7 +280,7 @@ function ItemRow(props: {
             onChangeText={setPrice}
             keyboardType="decimal-pad"
             error={priceError}
-            hint="The price on the receipt line, before instant savings."
+            hint="The price on the receipt line (for all units), before instant savings."
           />
           <Button
             title="Update price"

@@ -28,7 +28,7 @@ ALLOWED_EMAIL_DOMAINS = (
     "users.noreply.github.com",
     "anthropic.com",
 )
-INVENTED_BARCODES = {"21099900201232610011030"}
+INVENTED_BARCODES = {"21099900201232610011030", "21099900301232610311143"}
 
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}")
 PHONE = re.compile(r"(?<!\d)\(?\d{3}\)?[-. ]\d{3}[-. ]\d{4}(?!\d)")

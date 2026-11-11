@@ -104,7 +104,7 @@ test('a misread price can be corrected before saving', async () => {
 });
 
 test('giving up reports the reason and opens manual entry', async () => {
-  mockState.shots = [SIMPLE_RECEIPT.slice(0, 8)];
+  mockState.shots = [SIMPLE_RECEIPT.slice(0, 8).filter((r) => !/^\d{20,}$/.test(r))];
   const { navigation, calls } = await setup();
   await fireEvent.press(screen.getByRole('button', { name: 'Choose screenshots' }));
   expect(await screen.findByText(/Couldn't find the receipt number/)).toBeTruthy();
