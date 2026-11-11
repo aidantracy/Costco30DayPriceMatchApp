@@ -1,0 +1,21 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.pricematchtracker'
+version = '1.0.0'
+
+android {
+  namespace "dev.pricematchtracker.receipttext"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+dependencies {
+  // Google ML Kit Latin text recognition, bundled in the app: runs fully on the phone,
+  // so screenshots never leave it (ADR 0006, NFR-05).
+  implementation "com.google.mlkit:text-recognition:16.0.1"
+}

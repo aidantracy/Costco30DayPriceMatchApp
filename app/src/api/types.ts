@@ -102,3 +102,33 @@ export interface Savings {
   claims: Flag[];
   alert_accuracy: number | null;
 }
+
+export interface ReceiptLineIn {
+  line_no: number;
+  item_number: string;
+  description: string;
+  quantity: number;
+  unit_price_cents: number;
+  discount_cents: number;
+}
+
+export interface ReceiptIn {
+  channel: Channel;
+  purchase_date: string;
+  warehouse_number?: string;
+  receipt_id?: string;
+  order_number?: string;
+  parser_version: string;
+  items: ReceiptLineIn[];
+}
+
+export interface ReceiptBatchIn {
+  source: 'sync' | 'screenshot';
+  receipts: ReceiptIn[];
+}
+
+export interface ReceiptBatchOut {
+  created: number;
+  duplicates: number;
+  already_cheaper: FlagSummary[];
+}

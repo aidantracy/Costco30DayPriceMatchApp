@@ -206,3 +206,35 @@ test('non-JSON error bodies fall back to a generic message', async () => {
     new ApiError(502, 'Something went wrong (502). Try again.'),
   );
 });
+
+test('receipt import and unreadable-receipt reports', async () => {
+  const { api, calls } = setup(
+    {
+      'POST /auth/refresh': () => ({ status: 200, body: TOKENS(1) }),
+      'POST /purchases/batch': () => ({ status: 200, body: { created: 2, duplicates: 0, already_cheaper: [] } }),
+      'POST /review-items': () => ({ status: 201, body: { id: 'r1' } }),
+    },
+    'refresh-0',
+  );
+  const batch = {
+    source: 'screenshot' as const,
+    receipts: [
+      {
+        channel: 'warehouse' as const,
+        purchase_date: '2026-10-01',
+        warehouse_number: '999',
+        receipt_id: '999-2-123-2026-10-01',
+        parser_version: 'warehouse-receipt/1',
+        items: [],
+      },
+    ],
+  };
+  expect((await api.importReceipts(batch)).created).toBe(2);
+  await api.reportUnreadable('x'.repeat(250), 'warehouse-receipt/1');
+  expect(calls[1].body).toEqual(batch);
+  expect(calls[2].body).toEqual({
+    source: 'screenshot',
+    reason: 'x'.repeat(200),
+    parser_version: 'warehouse-receipt/1',
+  });
+});

@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import type { DropsStackParams, PurchasesStackParams } from './src/navigation';
 import { AddPurchaseScreen } from './src/screens/AddPurchaseScreen';
 import { ClaimCardScreen } from './src/screens/ClaimCardScreen';
+import { ImportReceiptScreen } from './src/screens/ImportReceiptScreen';
 import { PriceDropsScreen } from './src/screens/PriceDropsScreen';
 import { PurchasesScreen } from './src/screens/PurchasesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -27,6 +28,11 @@ function PurchasesTab() {
         name="AddPurchase"
         component={AddPurchaseScreen}
         options={{ title: 'Add a purchase' }}
+      />
+      <PurchasesStack.Screen
+        name="ImportReceipt"
+        component={ImportReceiptScreen}
+        options={{ title: 'Import a receipt' }}
       />
     </PurchasesStack.Navigator>
   );
