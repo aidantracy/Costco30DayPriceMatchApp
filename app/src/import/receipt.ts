@@ -14,16 +14,22 @@ export function readScreenshots(shots: OcrElement[][]): ParsedReceipt {
 export function recheck(receipt: ParsedReceipt, items: ReceiptItem[]): Check[] {
   const discounts = items.reduce((s, i) => s + i.discountCents, 0);
   const lines = items.reduce((s, i) => s + i.linePriceCents, 0) - discounts;
+  const units = items.reduce((s, i) => s + i.quantity, 0);
   const savingsExpected = receipt.instantSavingsCents ?? (discounts ? null : 0);
   return [
-    check('itemCount', receipt.itemsSold, items.length),
+    check('itemCount', receipt.itemsSold, units),
     check('subtotal', receipt.subtotalCents, lines),
     check('instantSavings', savingsExpected, discounts),
   ];
 }
 
 function check(name: Check['name'], expected: number | null, actual: number): Check {
-  return { name, expected, actual, passed: expected !== null && expected === actual };
+  return {
+    name,
+    expected,
+    actual,
+    passed: expected !== null && expected === actual,
+  };
 }
 
 /** Plain-language problems to show on the review screen, most important first. */
@@ -39,7 +45,9 @@ export function problems(receipt: ParsedReceipt, checks: Check[]): string[] {
     if (c.expected === null) {
       out.push(MISSING[c.name]);
     } else if (c.name === 'itemCount') {
-      out.push(`Found ${c.actual} items, but the receipt says ${c.expected}. A line may be missing.`);
+      out.push(
+        `Found ${c.actual} items, but the receipt says ${c.expected}. A line may be missing.`,
+      );
     } else if (c.name === 'subtotal') {
       out.push(
         `Items add up to ${formatCents(c.actual)}, but the subtotal is ${formatCents(c.expected)}. Check the prices.`,
@@ -81,7 +89,8 @@ export function toBatch(
           item_number: i.itemNumber,
           description: i.description.slice(0, 200),
           quantity: i.quantity,
-          unit_price_cents: i.linePriceCents,
+          // The API stores the price of one unit; the discount is for the whole line.
+          unit_price_cents: Math.round(i.linePriceCents / i.quantity),
           discount_cents: i.discountCents,
         })),
       },
@@ -91,5 +100,9 @@ export function toBatch(
 
 /** Applies a corrected line price; the price paid follows, less any linked discount. */
 export function withPrice(item: ReceiptItem, linePriceCents: number): ReceiptItem {
-  return { ...item, linePriceCents, pricePaidCents: Math.max(0, linePriceCents - item.discountCents) };
+  return {
+    ...item,
+    linePriceCents,
+    pricePaidCents: Math.max(0, linePriceCents - item.discountCents),
+  };
 }

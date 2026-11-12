@@ -76,3 +76,15 @@ The Costco app's receipt view shows the receipt and a **Close** button, with no 
 1. Inspect the costco.com Orders & Purchases page in the in-app browser with the owner signed in, and record its structure here.
 2. Find a receipt with a multi-unit line.
 3. Build the invented fixture set (normal, discounted, multi-unit, malformed) for the parser tests, as text and as rendered screenshots for spike S-7.
+
+## First real screenshots (Nov 10, 2026)
+
+The first import of a real receipt from the Costco app (Android, development build) showed layout details the invented fixtures had missed. Only the layout is recorded here; the receipt itself stays on the phone.
+
+- **Multi-unit lines:** a `2 @ 17.99`-style row is printed above the item, and the item's price is the total for all units. The receipt's items-sold count counts units, not lines.
+- **Wrapped cells:** a long description can wrap onto two lines, with the item number printed between them. A price can wrap above its tax flag. Text recognition then returns these pieces as separate rows.
+- **Discount numbers:** a discount line can name a related item number rather than the one printed above it, so discounts fall back to the item directly above.
+- **Receipt identifier:** the footer prints `Whse: Trm: Trn: OPT:` as labels over values, so they don't read as one row. The same numbers are in the date line (`MM/DD/YYYY HH:MM whse trm trn opt`) and in the barcode (`21` + warehouse 4 + terminal 3 + transaction 4 + YYMMDD + HHMM). All three are read and normalized (`0734` and `734` are the same warehouse).
+- **Screen text:** every screenshot includes the phone's status bar and the app's header and tab bar, which break naive overlap matching between screenshots.
+
+Parser `warehouse-receipt/2` handles these. The layout is reproduced with invented values in `app/src/parsing/__fixtures__/appScreenshots.ts`.
