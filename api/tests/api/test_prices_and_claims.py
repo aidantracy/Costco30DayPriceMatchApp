@@ -167,3 +167,37 @@ def test_endpoints_require_sign_in(client: TestClient) -> None:
         ("get", "/items/1234567/prices"),
     ]:
         assert getattr(client, method)(path).status_code == 401, path
+
+
+def discounted(quantity: int, unit_price_cents: int, discount_cents: int) -> dict[str, object]:
+    from tests.api.helpers import receipt
+
+    item = {
+        "line_no": 1,
+        "item_number": "2222222",
+        "description": "EXAMPLE GADGET",
+        "quantity": quantity,
+        "unit_price_cents": unit_price_cents,
+        "discount_cents": discount_cents,
+    }
+    return batch(receipt(items=[item]))
+
+
+def test_instant_savings_lower_the_price_paid(client: TestClient, auth: H) -> None:
+    # Printed 19.99 with 5.00 instant savings: paid 14.99, so 14.99 isn't a drop (FR-05).
+    client.post("/purchases/batch", json=discounted(1, 1999, 500), headers=auth)
+    assert (
+        client.post("/prices", json=price(price_cents=1499), headers=auth).json()["flagged"] == []
+    )
+    r = client.post("/prices", json=price(price_cents=1299), headers=auth).json()
+    assert [f["refund_due_cents"] for f in r["flagged"]] == [200]
+    card = client.get(f"/flags/{r['flagged'][0]['id']}/claim-card", headers=auth).json()
+    assert card["price_paid_cents"] == 1499
+
+
+def test_multi_unit_savings_are_shared_per_unit(client: TestClient, auth: H) -> None:
+    # Two at 8.49 with 3.00 off the line: 6.99 each.
+    client.post("/purchases/batch", json=discounted(2, 849, 300), headers=auth)
+    assert client.post("/prices", json=price(price_cents=699), headers=auth).json()["flagged"] == []
+    r = client.post("/prices", json=price(price_cents=649), headers=auth).json()
+    assert [f["refund_due_cents"] for f in r["flagged"]] == [100]
