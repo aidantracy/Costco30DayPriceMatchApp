@@ -3,11 +3,13 @@ import { ApiError, messageFrom, NetworkError, SignedOutError } from './errors';
 import type {
   ClaimCard,
   Flag,
+  FlagSummary,
   FlagUpdate,
   ManualPurchaseIn,
   ReceiptBatchIn,
   ReceiptBatchOut,
   ManualPurchaseOut,
+  PriceCheckResultIn,
   Me,
   Purchase,
   Savings,
@@ -130,8 +132,7 @@ export function createApiClient(options: ClientOptions) {
     me: () => request<Me>('GET', '/me'),
     purchases: (status: 'open' | 'expired' | 'excluded' | 'all' = 'open') =>
       request<Purchase[]>('GET', `/purchases?status=${status}`),
-    addPurchase: (body: ManualPurchaseIn) =>
-      request<ManualPurchaseOut>('POST', '/purchases', body),
+    addPurchase: (body: ManualPurchaseIn) => request<ManualPurchaseOut>('POST', '/purchases', body),
     importReceipts: (body: ReceiptBatchIn) =>
       request<ReceiptBatchOut>('POST', '/purchases/batch', body),
     /** Report a receipt the phone couldn't read. Only the reason is sent, never the receipt. */
@@ -142,13 +143,37 @@ export function createApiClient(options: ClientOptions) {
         parser_version: parserVersion,
       }),
     deletePurchase: (id: string, confirm = false) =>
-      request<null>('DELETE', `/purchases/${encodeURIComponent(id)}${confirm ? '?confirm=true' : ''}`),
+      request<null>(
+        'DELETE',
+        `/purchases/${encodeURIComponent(id)}${confirm ? '?confirm=true' : ''}`,
+      ),
     flags: () => request<Flag[]>('GET', '/flags'),
     claimCard: (flagId: string) =>
       request<ClaimCard>('GET', `/flags/${encodeURIComponent(flagId)}/claim-card`),
     updateFlag: (flagId: string, body: FlagUpdate) =>
       request<Flag>('PATCH', `/flags/${encodeURIComponent(flagId)}`, body),
     savings: () => request<Savings>('GET', '/savings'),
+    /** Items to look up on costco.com now (ADR 0007). */
+    priceChecksDue: async () =>
+      (await request<{ item_numbers: string[] }>('GET', '/price-checks/due')).item_numbers,
+    reportPriceCheck: (body: {
+      started_at: string;
+      finished_at: string;
+      results: PriceCheckResultIn[];
+    }) => request<{ recorded: number; flagged: FlagSummary[] }>('POST', '/price-checks', body),
+    reportPriceCheckFailure: async (
+      code: 'challenge' | 'network',
+      startedAt: string,
+      finishedAt: string,
+    ) => {
+      await request<null>('POST', '/sync-runs', {
+        kind: 'price_check',
+        status: 'failure',
+        error_code: code,
+        started_at: startedAt,
+        finished_at: finishedAt,
+      });
+    },
   };
 }
 
