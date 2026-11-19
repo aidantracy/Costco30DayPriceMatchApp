@@ -6,8 +6,10 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { PriceCheckProvider } from './src/prices/PriceCheckProvider';
 import type { DropsStackParams, PurchasesStackParams } from './src/navigation';
 import { AddPurchaseScreen } from './src/screens/AddPurchaseScreen';
+import { ChooseWarehouseScreen } from './src/screens/ChooseWarehouseScreen';
 import { ClaimCardScreen } from './src/screens/ClaimCardScreen';
 import { ImportReceiptScreen } from './src/screens/ImportReceiptScreen';
 import { PriceDropsScreen } from './src/screens/PriceDropsScreen';
@@ -51,6 +53,11 @@ function DropsTab() {
         component={ClaimCardScreen}
         options={{ title: 'Claim card' }}
       />
+      <DropsStack.Screen
+        name="ChooseWarehouse"
+        component={ChooseWarehouseScreen}
+        options={{ title: 'Your warehouse' }}
+      />
     </DropsStack.Navigator>
   );
 }
@@ -66,17 +73,21 @@ function Root() {
   }
   if (status === 'signedOut') return <SignInScreen />;
   return (
-    <Tabs.Navigator
-      screenOptions={{ headerShown: false, tabBarActiveTintColor: colors.primary }}
-    >
-      <Tabs.Screen name="DropsTab" component={DropsTab} options={{ title: 'Price drops' }} />
-      <Tabs.Screen name="PurchasesTab" component={PurchasesTab} options={{ title: 'Purchases' }} />
-      <Tabs.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ headerShown: true, title: 'Settings' }}
-      />
-    </Tabs.Navigator>
+    <PriceCheckProvider>
+      <Tabs.Navigator screenOptions={{ headerShown: false, tabBarActiveTintColor: colors.primary }}>
+        <Tabs.Screen name="DropsTab" component={DropsTab} options={{ title: 'Price drops' }} />
+        <Tabs.Screen
+          name="PurchasesTab"
+          component={PurchasesTab}
+          options={{ title: 'Purchases' }}
+        />
+        <Tabs.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ headerShown: true, title: 'Settings' }}
+        />
+      </Tabs.Navigator>
+    </PriceCheckProvider>
   );
 }
 

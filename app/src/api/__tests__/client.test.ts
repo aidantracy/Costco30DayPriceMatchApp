@@ -238,3 +238,25 @@ test('receipt import and unreadable-receipt reports', async () => {
     parser_version: 'warehouse-receipt/1',
   });
 });
+
+test('price check endpoints', async () => {
+  const { api, calls } = setup(
+    {
+      'POST /auth/refresh': () => ({ status: 200, body: TOKENS(1) }),
+      'GET /price-checks/due': () => ({ status: 200, body: { item_numbers: ['1111111'] } }),
+      'POST /price-checks': () => ({ status: 200, body: { recorded: 1, flagged: [] } }),
+      'POST /sync-runs': () => ({ status: 204 }),
+    },
+    'refresh-0',
+  );
+  expect(await api.priceChecksDue()).toEqual(['1111111']);
+  const when = { started_at: '2026-10-01T18:00:00Z', finished_at: '2026-10-01T18:01:00Z' };
+  await api.reportPriceCheck({ ...when, results: [{ item_number: '1111111', found: false }] });
+  await api.reportPriceCheckFailure('challenge', when.started_at, when.finished_at);
+  expect(calls[3].body).toEqual({
+    kind: 'price_check',
+    status: 'failure',
+    error_code: 'challenge',
+    ...when,
+  });
+});
