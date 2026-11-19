@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
@@ -10,6 +10,7 @@ import { useLoad } from '../ui/useLoad';
 
 export function SettingsScreen() {
   const { api, signOut } = useAuth();
+  const navigation = useNavigation<{ navigate: (tab: string, params: object) => void }>();
   const load = useCallback(async () => ({ me: await api.me(), savings: await api.savings() }), [api]);
   const { data, reload } = useLoad(load);
   const [busy, setBusy] = useState(false);
@@ -39,6 +40,11 @@ export function SettingsScreen() {
         <Text style={styles.label}>Time zone</Text>
         <Text style={styles.value}>{data?.me.time_zone ?? '—'}</Text>
       </Card>
+      <Button
+        title="Costco warehouse for prices"
+        variant="secondary"
+        onPress={() => navigation.navigate('DropsTab', { screen: 'ChooseWarehouse' })}
+      />
       <Button
         title="Sign out"
         variant="secondary"

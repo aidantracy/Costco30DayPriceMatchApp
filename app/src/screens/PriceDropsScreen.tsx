@@ -1,12 +1,13 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
 import { shortDate } from '../dates';
 import { formatCents } from '../money';
 import type { DropsStackParams } from '../navigation';
+import { statusText, usePriceCheck } from '../prices/PriceCheckProvider';
 import { STATUS_LABEL } from '../purchases/claims';
 import { Button, Message } from '../ui/components';
 import { colors, space } from '../ui/theme';
@@ -18,6 +19,14 @@ export function PriceDropsScreen({ navigation }: Props) {
   const { api } = useAuth();
   const load = useCallback(() => api.flags(), [api]);
   const { data, error, loading, refreshing, reload } = useLoad(load);
+  const check = usePriceCheck();
+  const line = statusText(check.status);
+  const finished = check.status.state === 'idle' ? check.status.last : undefined;
+
+  // Show drops found by a price check as soon as it finishes.
+  useEffect(() => {
+    if (finished) void reload();
+  }, [finished, reload]);
 
   useFocusEffect(
     useCallback(() => {
@@ -31,7 +40,29 @@ export function PriceDropsScreen({ navigation }: Props) {
       contentContainerStyle={styles.list}
       data={data ?? []}
       keyExtractor={(f) => f.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => reload('refresh')} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            void reload('refresh');
+            void check.run(true);
+          }}
+        />
+      }
+      ListHeaderComponent={
+        line ? (
+          <View style={styles.status}>
+            <Text style={styles.statusText}>{line}</Text>
+            {finished?.kind === 'needWarehouse' ? (
+              <Button
+                title="Choose your warehouse"
+                variant="secondary"
+                onPress={() => navigation.navigate('ChooseWarehouse')}
+              />
+            ) : null}
+          </View>
+        ) : undefined
+      }
       ListEmptyComponent={
         loading ? undefined : error ? (
           <Message
@@ -42,7 +73,7 @@ export function PriceDropsScreen({ navigation }: Props) {
         ) : (
           <Message
             title="No price drops right now"
-            body="When something you bought gets cheaper within 30 days, it shows up here."
+            body="Prices are checked on costco.com each day you open the app. When something you bought gets cheaper within 30 days, it shows up here."
           />
         )
       }
@@ -86,4 +117,6 @@ const styles = StyleSheet.create({
   description: { fontSize: 16, fontWeight: '600', color: colors.text },
   meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
   amount: { fontSize: 18, fontWeight: '700', color: colors.success },
+  status: { marginBottom: space.md },
+  statusText: { fontSize: 14, color: colors.muted },
 });

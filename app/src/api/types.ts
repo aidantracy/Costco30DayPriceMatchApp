@@ -132,3 +132,11 @@ export interface ReceiptBatchOut {
   duplicates: number;
   already_cheaper: FlagSummary[];
 }
+
+export interface PriceCheckResultIn {
+  item_number: string;
+  found: boolean;
+  warehouse_price_cents?: number | null;
+  online_price_cents?: number | null;
+  promo_end?: string | null;
+}
