@@ -1,6 +1,6 @@
 # ADR 0004: Run automatic price checks on the server
 
-**Status:** Accepted · **Date:** Oct 21, 2026 · **Resolves:** OQ-08
+**Status:** Superseded by [ADR 0007](0007-price-checks-on-the-phone.md) · **Date:** Oct 21, 2026 · **Resolves:** OQ-08
 
 ## Context
 

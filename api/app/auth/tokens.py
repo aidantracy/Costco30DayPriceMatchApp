@@ -32,7 +32,14 @@ def decode_access_token(token: str, now: datetime, key: str) -> uuid.UUID:
             token,
             key,
             algorithms=[ALGORITHM],
-            options={"require": ["sub", "typ", "exp"], "verify_exp": False},
+            # Expiry is checked below against the app's clock; PyJWT would check exp and iat
+            # against the wall clock instead.
+            options={
+                "require": ["sub", "typ", "exp"],
+                "verify_exp": False,
+                "verify_iat": False,
+                "verify_nbf": False,
+            },
         )
     except jwt.PyJWTError as exc:
         raise InvalidTokenError from exc
