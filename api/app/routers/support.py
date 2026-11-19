@@ -140,6 +140,8 @@ def resolve_review_item(
 
 
 class SyncRunIn(BaseModel):
+    # Receipt sync by default; the phone also reports failed price checks (ADR 0007).
+    kind: RunKind = RunKind.SYNC
     status: RunStatus
     error_code: ErrorCode | None = None
     started_at: datetime
@@ -167,11 +169,11 @@ class HealthOut(BaseModel):
 
 @router.post("/sync-runs", status_code=status.HTTP_204_NO_CONTENT)
 def report_sync_run(body: SyncRunIn, user: CurrentUser, session: SessionDep) -> Response:
-    """The phone reports each receipt sync. Error codes only, never page content (NFR-04)."""
+    """The phone reports each receipt sync or failed price check. Error codes only (NFR-04)."""
     session.add(
         AutomationRun(
             user_id=user.id,
-            kind=RunKind.SYNC,
+            kind=body.kind,
             status=body.status,
             error_code=body.error_code.value if body.error_code else None,
             started_at=body.started_at,

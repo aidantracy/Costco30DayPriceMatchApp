@@ -322,6 +322,24 @@ class AutomationRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ItemCheck(Base):
+    """When the phone last looked an item up on costco.com, and whether it was sold online.
+    Items that aren't online are looked up again weekly, not daily (ADR 0007, NFR-21)."""
+
+    __tablename__ = "item_checks"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    item_number: Mapped[str] = mapped_column(String(12))
+    checked_on: Mapped[date] = mapped_column(Date)
+    found: Mapped[bool] = mapped_column(Boolean)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "item_number", name="uq_item_checks_user_item"),
+        CheckConstraint("item_number ~ '^[0-9]+$'", name="item_number_digits"),
+    )
+
+
 class Exclusion(Base):
     __tablename__ = "exclusions"
 

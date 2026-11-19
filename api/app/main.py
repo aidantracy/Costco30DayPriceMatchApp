@@ -3,12 +3,13 @@
 from fastapi import FastAPI
 
 from app.config import get_settings
-from app.routers import auth, flags, prices, purchases, support
+from app.routers import auth, flags, price_checks, prices, purchases, support
 
 app = FastAPI(title="Price Match Tracker API", version="0.1.0")
 app.include_router(auth.router)
 app.include_router(purchases.router)
 app.include_router(prices.router)
+app.include_router(price_checks.router)
 app.include_router(flags.router)
 app.include_router(support.router)
 
