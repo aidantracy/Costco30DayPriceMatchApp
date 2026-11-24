@@ -50,18 +50,21 @@ export function PriceDropsScreen({ navigation }: Props) {
         />
       }
       ListHeaderComponent={
-        line ? (
-          <View style={styles.status}>
-            <Text style={styles.statusText}>{line}</Text>
-            {finished?.kind === 'needWarehouse' ? (
-              <Button
-                title="Choose your warehouse"
-                variant="secondary"
-                onPress={() => navigation.navigate('ChooseWarehouse')}
-              />
-            ) : null}
-          </View>
-        ) : undefined
+        <View style={styles.status}>
+          {line ? <Text style={styles.statusText}>{line}</Text> : null}
+          {finished?.kind === 'needWarehouse' ? (
+            <Button
+              title="Choose your warehouse"
+              variant="secondary"
+              onPress={() => navigation.navigate('ChooseWarehouse')}
+            />
+          ) : null}
+          <Button
+            title="Import Warehouse Savings"
+            variant="secondary"
+            onPress={() => navigation.navigate('ImportSavings')}
+          />
+        </View>
       }
       ListEmptyComponent={
         loading ? undefined : error ? (
@@ -73,7 +76,7 @@ export function PriceDropsScreen({ navigation }: Props) {
         ) : (
           <Message
             title="No price drops right now"
-            body="Prices are checked on costco.com each day you open the app. When something you bought gets cheaper within 30 days, it shows up here."
+            body="Prices are checked on costco.com each day you open the app, and from Warehouse Savings screenshots you import. When something you bought gets cheaper within 30 days, it shows up here."
           />
         )
       }

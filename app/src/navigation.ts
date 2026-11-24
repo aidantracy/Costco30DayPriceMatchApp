@@ -8,4 +8,5 @@ export type DropsStackParams = {
   PriceDrops: undefined;
   ClaimCard: { flagId: string };
   ChooseWarehouse: undefined;
+  ImportSavings: undefined;
 };

@@ -9,7 +9,9 @@ import type {
   ReceiptBatchIn,
   ReceiptBatchOut,
   ManualPurchaseOut,
+  PriceBatchOut,
   PriceCheckResultIn,
+  PriceIn,
   Me,
   Purchase,
   Savings,
@@ -153,6 +155,9 @@ export function createApiClient(options: ClientOptions) {
     updateFlag: (flagId: string, body: FlagUpdate) =>
       request<Flag>('PATCH', `/flags/${encodeURIComponent(flagId)}`, body),
     savings: () => request<Savings>('GET', '/savings'),
+    /** Many prices at once, such as a Warehouse Savings list. Repeats are skipped. */
+    recordPrices: (prices: PriceIn[]) =>
+      request<PriceBatchOut>('POST', '/prices/batch', { prices }),
     /** Items to look up on costco.com now (ADR 0007). */
     priceChecksDue: async () =>
       (await request<{ item_numbers: string[] }>('GET', '/price-checks/due')).item_numbers,

@@ -260,3 +260,30 @@ test('price check endpoints', async () => {
     ...when,
   });
 });
+
+test('recordPrices posts a batch of prices', async () => {
+  const { api, calls } = setup(
+    {
+      'POST /auth/refresh': () => ({ status: 200, body: TOKENS(1) }),
+      'POST /prices/batch': () => ({
+        status: 201,
+        body: { recorded: 1, duplicates: 0, flagged: [] },
+      }),
+    },
+    'refresh-0',
+  );
+  const price = {
+    item_number: '1111111',
+    channel: 'warehouse' as const,
+    price_cents: 799,
+    seen_on: '2026-10-01',
+    promo_end: '2026-10-20',
+    quantity_limit: 5,
+  };
+  expect(await api.recordPrices([price])).toEqual({ recorded: 1, duplicates: 0, flagged: [] });
+  expect(calls[1]).toMatchObject({
+    method: 'POST',
+    path: '/prices/batch',
+    body: { prices: [price] },
+  });
+});
