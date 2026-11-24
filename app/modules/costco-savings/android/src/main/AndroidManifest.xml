@@ -1,0 +1,26 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Lets the app open the Costco app (package visibility, Android 11+). -->
+  <queries>
+    <package android:name="com.costco.app.android" />
+  </queries>
+
+  <application>
+    <!--
+      Reads the Costco app's Warehouse Savings list when the owner asks for it. The service
+      only receives events from the Costco app (see costco_savings_service.xml) and ignores
+      them unless a reading was started from this app in the last few minutes.
+    -->
+    <service
+      android:name="dev.pricematchtracker.costcosavings.SavingsReaderService"
+      android:exported="false"
+      android:label="@string/costco_savings_service_label"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data
+        android:name="android.accessibilityservice"
+        android:resource="@xml/costco_savings_service" />
+    </service>
+  </application>
+</manifest>

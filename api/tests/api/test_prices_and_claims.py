@@ -201,3 +201,37 @@ def test_multi_unit_savings_are_shared_per_unit(client: TestClient, auth: H) -> 
     assert client.post("/prices", json=price(price_cents=699), headers=auth).json()["flagged"] == []
     r = client.post("/prices", json=price(price_cents=649), headers=auth).json()
     assert [f["refund_due_cents"] for f in r["flagged"]] == [100]
+
+
+def test_price_batch_records_flags_and_skips_repeats(client: TestClient, auth: H) -> None:
+    client.post("/purchases/batch", json=batch(), headers=auth)
+    body = {
+        "prices": [
+            price(promo_end="2026-10-20", quantity_limit=5),
+            price(item_number="7777777", price_cents=799),
+        ]
+    }
+    r = client.post("/prices/batch", json=body, headers=auth)
+    assert r.status_code == 201
+    out = r.json()
+    assert (out["recorded"], out["duplicates"]) == (2, 0)
+    assert [(f["item_number"], f["refund_due_cents"]) for f in out["flagged"]] == [("2222222", 500)]
+
+    again = client.post("/prices/batch", json=body, headers=auth).json()
+    assert (again["recorded"], again["duplicates"], again["flagged"]) == (0, 2, [])
+    history = client.get("/items/2222222/prices", headers=auth).json()
+    assert [(h["promo_end"], h["quantity_limit"]) for h in history] == [("2026-10-20", 5)]
+
+
+def test_price_batch_reports_only_the_lowest_flag(client: TestClient, auth: H) -> None:
+    client.post("/purchases/batch", json=batch(), headers=auth)
+    body = {"prices": [price(), price(price_cents=1299, seen_on="2026-10-01")]}
+    out = client.post("/prices/batch", json=body, headers=auth).json()
+    assert [f["refund_due_cents"] for f in out["flagged"]] == [700]
+
+
+def test_price_batch_rejects_future_dates_and_empty_lists(client: TestClient, auth: H) -> None:
+    future = {"prices": [price(seen_on="2026-10-02")]}
+    assert client.post("/prices/batch", json=future, headers=auth).status_code == 422
+    assert client.post("/prices/batch", json={"prices": []}, headers=auth).status_code == 422
+    assert client.post("/prices/batch", json={"prices": [price()]}).status_code == 401

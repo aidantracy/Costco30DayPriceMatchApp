@@ -7,10 +7,11 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, status
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 
 from app.auth.deps import CurrentUser, NowDep, SessionDep, SettingsDep
 from app.db.models import PriceObservation, PriceSource, Purchase
-from app.domain.models import Channel
+from app.domain.models import Channel, FlagStatus
 from app.routers.purchases import FlagSummary, flag_summary
 from app.services import flagging
 from app.services.time import local_today
@@ -40,6 +41,20 @@ class PriceOut(BaseModel):
 
 class PriceResult(BaseModel):
     price: PriceOut
+    flagged: list[FlagSummary]
+
+
+# A Warehouse Savings list rarely has more than a few hundred items.
+MAX_PRICES_PER_BATCH = 500
+
+
+class PriceBatchIn(BaseModel):
+    prices: list[PriceIn] = Field(min_length=1, max_length=MAX_PRICES_PER_BATCH)
+
+
+class PriceBatchOut(BaseModel):
+    recorded: int
+    duplicates: int
     flagged: list[FlagSummary]
 
 
@@ -81,6 +96,69 @@ def record_price(
     summaries = [flag_summary(f, session.get_one(Purchase, f.purchase_id)) for f in flags]
     session.commit()
     return PriceResult(price=price_out(obs), flagged=summaries)
+
+
+@router.post("/prices/batch", status_code=status.HTTP_201_CREATED)
+def record_prices(
+    body: PriceBatchIn, user: CurrentUser, session: SessionDep, settings: SettingsDep, now: NowDep
+) -> PriceBatchOut:
+    """Many manual prices at once, such as a Warehouse Savings list read on the phone.
+
+    Prices this user already recorded (same item, channel, day and price) are skipped, so
+    importing the same screenshots twice changes nothing.
+    """
+    today = local_today(now, user.time_zone)
+    if any(p.seen_on > today for p in body.prices):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "seen_on is in the future")
+    recorded = 0
+    duplicates = 0
+    flags = []
+    seen: set[tuple[str, Channel, date, int]] = set()
+    for p in body.prices:
+        key = (p.item_number, p.channel, p.seen_on, p.price_cents)
+        if key in seen or _has_manual_price(session, user.id, *key):
+            duplicates += 1
+            continue
+        seen.add(key)
+        obs = PriceObservation(
+            item_number=p.item_number,
+            channel=p.channel,
+            price_cents=p.price_cents,
+            seen_on=p.seen_on,
+            promo_end=p.promo_end,
+            quantity_limit=p.quantity_limit,
+            source=PriceSource.MANUAL,
+            user_id=user.id,
+        )
+        session.add(obs)
+        session.flush()
+        recorded += 1
+        flags += flagging.flag_purchases_for_observation(
+            session, obs, user.id, today, settings.price_adjustment_window_days
+        )
+    # A later, lower price in the same batch replaces an earlier flag; report only open ones.
+    open_flags = [f for f in flags if f.status is FlagStatus.FLAGGED]
+    summaries = [flag_summary(f, session.get_one(Purchase, f.purchase_id)) for f in open_flags]
+    session.commit()
+    return PriceBatchOut(recorded=recorded, duplicates=duplicates, flagged=summaries)
+
+
+def _has_manual_price(
+    session: Session, user_id: uuid.UUID, item: str, channel: Channel, seen_on: date, cents: int
+) -> bool:
+    return (
+        session.scalar(
+            select(PriceObservation.id).where(
+                PriceObservation.user_id == user_id,
+                PriceObservation.source == PriceSource.MANUAL,
+                PriceObservation.item_number == item,
+                PriceObservation.channel == channel,
+                PriceObservation.seen_on == seen_on,
+                PriceObservation.price_cents == cents,
+            )
+        )
+        is not None
+    )
 
 
 @router.get("/items/{item_number}/prices")
