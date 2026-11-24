@@ -10,6 +10,7 @@ import { formatCents } from '../money';
 import type { DropsStackParams } from '../navigation';
 import type { ParsedSavings, SavingsOffer } from '../parsing/warehouseSavings';
 import { canRead, savingsReader, type ReaderStatus } from '../prices/savingsReader';
+import { scheduleSavingsReminder } from '../prices/savingsReminder';
 import { Button, Card, ErrorText, Message } from '../ui/components';
 import { colors, space } from '../ui/theme';
 
@@ -24,7 +25,7 @@ const STEP_TEXT: Record<string, string> = {
   reading: 'Reading Warehouse Savings…',
 };
 
-export function ReadSavingsScreen({ navigation }: Props) {
+export function ReadSavingsScreen({ navigation, route }: Props) {
   const { api } = useAuth();
   const [enabled, setEnabled] = useState(() => canRead() && savingsReader.isServiceEnabled());
   const [status, setStatus] = useState<ReaderStatus | null>(() =>
@@ -60,6 +61,22 @@ export function ReadSavingsScreen({ navigation }: Props) {
     return () => clearInterval(timer);
   }, [running, refresh]);
 
+  // Opened from the reminder: start reading at once when the reader is set up.
+  const autoStart = route.params?.autoStart === true;
+  useEffect(() => {
+    if (!autoStart) return;
+    navigation.setParams({ autoStart: undefined });
+    if (
+      canRead() &&
+      savingsReader.isServiceEnabled() &&
+      savingsReader.status().state !== 'running'
+    ) {
+      start();
+    }
+    // start() only reads stable module functions and setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, navigation]);
+
   const savings = useMemo(
     () => (status?.state === 'done' ? readSavingsPages(status.pages) : null),
     [status],
@@ -89,6 +106,12 @@ export function ReadSavingsScreen({ navigation }: Props) {
         parts.push(
           `${f.description}: get ${formatCents(f.refund_due_cents)} back by ${shortDate(f.claim_deadline)}.`,
         );
+      }
+      const remindOn = await scheduleSavingsReminder(offers.map((o) => o.validThrough)).catch(
+        () => null,
+      );
+      if (remindOn) {
+        parts.push(`Reminder set for ${shortDate(todayIso(remindOn))} to read it again.`);
       }
       Alert.alert('Warehouse Savings saved', parts.join('\n'), [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -203,6 +226,15 @@ function Review(props: {
   const today = todayIso();
   const offers = currentOffers(savings, today);
   const ended = savings.offers.length - offers.length;
+  // At the top and the bottom, so a long list needn't be scrolled first.
+  const saveButton =
+    offers.length > 0 ? (
+      <Button
+        title={`Save ${offers.length} price${offers.length === 1 ? '' : 's'}`}
+        busy={props.busy}
+        onPress={() => props.onSave(savings, offers)}
+      />
+    ) : null;
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
@@ -226,6 +258,7 @@ function Review(props: {
           </Text>
         ) : null}
       </Card>
+      {saveButton}
 
       {offers.map((o) => (
         <View key={o.itemNumber} style={styles.row}>
@@ -269,13 +302,7 @@ function Review(props: {
       ) : null}
 
       <ErrorText>{props.error}</ErrorText>
-      {offers.length > 0 ? (
-        <Button
-          title={`Save ${offers.length} price${offers.length === 1 ? '' : 's'}`}
-          busy={props.busy}
-          onPress={() => props.onSave(savings, offers)}
-        />
-      ) : null}
+      {saveButton}
       <Button title="Read again" variant="secondary" onPress={props.onAgain} />
     </ScrollView>
   );
