@@ -1,0 +1,4 @@
+<resources>
+  <string name="costco_savings_service_label">Price Match Tracker: read Warehouse Savings</string>
+  <string name="costco_savings_service_description">When you tap Read Warehouse Savings in Price Match Tracker, this opens the Costco app, scrolls through Warehouse Savings and reads the item numbers, prices and dates. It works only in the Costco app and only right after you ask. Nothing is read otherwise, and the text stays on your phone; only the prices are saved to your account.</string>
+</resources>

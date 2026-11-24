@@ -12,6 +12,7 @@ import { AddPurchaseScreen } from './src/screens/AddPurchaseScreen';
 import { ChooseWarehouseScreen } from './src/screens/ChooseWarehouseScreen';
 import { ClaimCardScreen } from './src/screens/ClaimCardScreen';
 import { ImportReceiptScreen } from './src/screens/ImportReceiptScreen';
+import { ReadSavingsScreen } from './src/screens/ReadSavingsScreen';
 import { PriceDropsScreen } from './src/screens/PriceDropsScreen';
 import { PurchasesScreen } from './src/screens/PurchasesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -57,6 +58,11 @@ function DropsTab() {
         name="ChooseWarehouse"
         component={ChooseWarehouseScreen}
         options={{ title: 'Your warehouse' }}
+      />
+      <DropsStack.Screen
+        name="ReadSavings"
+        component={ReadSavingsScreen}
+        options={{ title: 'Warehouse Savings' }}
       />
     </DropsStack.Navigator>
   );

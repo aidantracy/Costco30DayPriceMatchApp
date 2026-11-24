@@ -133,6 +133,21 @@ export interface ReceiptBatchOut {
   already_cheaper: FlagSummary[];
 }
 
+export interface PriceIn {
+  item_number: string;
+  channel: Channel;
+  price_cents: number;
+  seen_on: string;
+  promo_end?: string | null;
+  quantity_limit?: number | null;
+}
+
+export interface PriceBatchOut {
+  recorded: number;
+  duplicates: number;
+  flagged: FlagSummary[];
+}
+
 export interface PriceCheckResultIn {
   item_number: string;
   found: boolean;
