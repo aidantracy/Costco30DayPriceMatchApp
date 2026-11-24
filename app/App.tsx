@@ -1,13 +1,16 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { PriceCheckProvider } from './src/prices/PriceCheckProvider';
-import type { DropsStackParams, PurchasesStackParams } from './src/navigation';
+import type { DropsStackParams, PurchasesStackParams, RootTabParams } from './src/navigation';
+import { isSavingsReminder } from './src/prices/savingsReminder';
 import { AddPurchaseScreen } from './src/screens/AddPurchaseScreen';
 import { ChooseWarehouseScreen } from './src/screens/ChooseWarehouseScreen';
 import { ClaimCardScreen } from './src/screens/ClaimCardScreen';
@@ -21,7 +24,40 @@ import { colors } from './src/ui/theme';
 
 const PurchasesStack = createNativeStackNavigator<PurchasesStackParams>();
 const DropsStack = createNativeStackNavigator<DropsStackParams>();
-const Tabs = createBottomTabNavigator();
+const Tabs = createBottomTabNavigator<RootTabParams>();
+const navigationRef = createNavigationContainerRef<RootTabParams>();
+
+// Show the reminder even if it fires while the app is open.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
+/** Opens the Warehouse Savings reader when its reminder notification is tapped. */
+function useReminderLinks() {
+  const response = Notifications.useLastNotificationResponse();
+  const handled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!response || !isSavingsReminder(response)) return;
+    const key = `${response.notification.request.identifier}:${response.notification.date}`;
+    if (handled.current === key) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const open = () => {
+      if (!navigationRef.isReady()) {
+        timer = setTimeout(open, 300);
+        return;
+      }
+      handled.current = key;
+      navigationRef.navigate('DropsTab', { screen: 'ReadSavings', params: { autoStart: true } });
+    };
+    open();
+    return () => clearTimeout(timer);
+  }, [response]);
+}
 
 function PurchasesTab() {
   return (
@@ -70,6 +106,7 @@ function DropsTab() {
 
 function Root() {
   const { status } = useAuth();
+  useReminderLinks();
   if (status === 'loading') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -101,7 +138,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <Root />
           <StatusBar style="dark" />
         </NavigationContainer>

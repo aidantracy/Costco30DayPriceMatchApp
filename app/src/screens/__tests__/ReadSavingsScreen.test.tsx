@@ -22,7 +22,12 @@ const mockReader = {
   openSettings: jest.fn(),
 };
 
+const mockSchedule = jest.fn();
+
 jest.mock('../../config', () => ({ API_URL: 'https://api.example.test' }));
+jest.mock('../../prices/savingsReminder', () => ({
+  scheduleSavingsReminder: (ends: string[]) => mockSchedule(ends),
+}));
 jest.mock('../../prices/savingsReader', () => ({
   canRead: () => mockReader.available,
   savingsReader: {
@@ -46,7 +51,7 @@ jest.mock('../../prices/savingsReader', () => ({
 
 type Props = ComponentProps<typeof ReadSavingsScreen>;
 
-async function setup() {
+async function setup(params?: { autoStart?: boolean }) {
   const server = fakeFetch({
     'POST /auth/refresh': () => ({ status: 200, body: TOKENS(1) }),
     'POST /prices/batch': () => ({
@@ -67,8 +72,11 @@ async function setup() {
       },
     }),
   });
-  const navigation = { goBack: jest.fn() };
-  const props = { navigation, route: { key: 'k', name: 'ReadSavings' } } as unknown as Props;
+  const navigation = { goBack: jest.fn(), setParams: jest.fn() };
+  const props = {
+    navigation,
+    route: { key: 'k', name: 'ReadSavings', params },
+  } as unknown as Props;
   await render(
     <AuthProvider
       baseUrl="https://api.example.test"
@@ -93,6 +101,7 @@ beforeEach(() => {
   jest.useFakeTimers({ now: new Date(2026, 10, 24, 9, 0) });
   Object.assign(mockReader, { available: true, enabled: true, installed: true, status: idle });
   jest.clearAllMocks();
+  mockSchedule.mockResolvedValue(new Date(2026, 10, 30, 10));
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
 });
 
@@ -139,8 +148,11 @@ test('reads the list, shows the offers and saves the prices', async () => {
   expect(screen.getByText('SAMPLE BRAND DARK CHOCOLATE 16 OZ')).toBeTruthy();
   expect(screen.getByText('EXAMPLE PARTY CUPS 140/18 OZ (#1100007)')).toBeTruthy();
 
+  // The save button is at the top and the bottom of the list.
+  expect(screen.getAllByRole('button', { name: 'Save 6 prices' })).toHaveLength(2);
+
   jest.useRealTimers();
-  await fireEvent.press(screen.getByRole('button', { name: 'Save 6 prices' }));
+  await fireEvent.press(screen.getAllByRole('button', { name: 'Save 6 prices' })[0]);
   const post = calls.find((c) => c.path === '/prices/batch');
   const prices = (post?.body as { prices: unknown[] }).prices;
   expect(prices).toHaveLength(6);
@@ -156,6 +168,8 @@ test('reads the list, shows the offers and saves the prices', async () => {
   const [title, message, buttons] = (Alert.alert as jest.Mock).mock.calls[0];
   expect(title).toBe('Warehouse Savings saved');
   expect(message).toContain('EXAMPLE SOUP STOCK: get $2.00 back by Nov 29.');
+  expect(message).toContain('Reminder set for Nov 30 to read it again.');
+  expect(mockSchedule).toHaveBeenCalledWith(expect.arrayContaining(['2026-11-30', '2026-12-20']));
   buttons[0].onPress();
   expect(navigation.goBack).toHaveBeenCalled();
 });
@@ -190,4 +204,21 @@ test('shows why a reading failed', async () => {
   };
   await setup();
   expect(screen.getByText("Couldn't find Warehouse Savings in the Costco app.")).toBeTruthy();
+});
+
+test('starts reading right away when opened from the reminder', async () => {
+  const { navigation } = await setup({ autoStart: true });
+  expect(mockReader.start).toHaveBeenCalledTimes(1);
+  expect(navigation.setParams).toHaveBeenCalledWith({ autoStart: undefined });
+  expect(screen.getByText('Opening Warehouse Savings…')).toBeTruthy();
+});
+
+test('saves without a reminder when notifications are off', async () => {
+  mockSchedule.mockResolvedValue(null);
+  mockReader.status = { state: 'done', step: 'reading', error: '', pages: [SAVINGS_PAGE_1] };
+  jest.useRealTimers();
+  await setup();
+  await fireEvent.press(screen.getAllByRole('button', { name: /^Save/ })[0]);
+  const [, message] = (Alert.alert as jest.Mock).mock.calls[0];
+  expect(message).not.toContain('Reminder');
 });
