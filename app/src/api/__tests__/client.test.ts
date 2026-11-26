@@ -287,3 +287,44 @@ test('recordPrices posts a batch of prices', async () => {
     body: { prices: [price] },
   });
 });
+
+test('recordPrices splits long lists into requests of 500', async () => {
+  let n = 0;
+  const { api, calls } = setup(
+    {
+      'POST /auth/refresh': () => ({ status: 200, body: TOKENS(1) }),
+      'POST /prices/batch': () => {
+        n += 1;
+        const flag = (id: string, cents: number) => ({
+          id,
+          purchase_id: 'p1',
+          item_number: '1111111',
+          description: 'EXAMPLE',
+          refund_due_cents: cents,
+          claim_deadline: '2026-10-20',
+        });
+        return {
+          status: 201,
+          body:
+            n === 1
+              ? { recorded: 499, duplicates: 1, flagged: [flag('f1', 100)] }
+              : { recorded: 78, duplicates: 0, flagged: [flag('f2', 300)] },
+        };
+      },
+    },
+    'refresh-0',
+  );
+  const prices = Array.from({ length: 578 }, (_, i) => ({
+    item_number: String(1000000 + i),
+    channel: 'warehouse' as const,
+    price_cents: 999,
+    seen_on: '2026-10-01',
+  }));
+  const result = await api.recordPrices(prices);
+  const posts = calls.filter((c) => c.path === '/prices/batch');
+  expect(posts.map((c) => (c.body as { prices: unknown[] }).prices.length)).toEqual([500, 78]);
+  expect(result.recorded).toBe(577);
+  expect(result.duplicates).toBe(1);
+  expect(result.flagged.map((f) => f.id)).toEqual(['f2']);
+});
+
