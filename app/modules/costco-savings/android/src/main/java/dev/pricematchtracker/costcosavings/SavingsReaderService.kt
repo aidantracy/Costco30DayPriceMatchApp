@@ -57,11 +57,12 @@ class SavingsReaderService : AccessibilityService() {
       return
     }
     if (!ReaderSession.isActive(now)) {
-      ReaderSession.fail(
-        if (ReaderSession.pageCount() == 0) "Couldn't find Warehouse Savings in the Costco app."
-        else "Reading took too long."
-      )
-      stop()
+      // Out of time: keep what was read so the owner can still check and save it.
+      if (ReaderSession.pageCount() > 0) finish()
+      else {
+        ReaderSession.fail("Couldn't find Warehouse Savings in the Costco app.")
+        stop()
+      }
       return
     }
 
