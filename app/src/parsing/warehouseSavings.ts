@@ -72,7 +72,8 @@ const PRICE = /^[$S]\s*(\d{1,3}(?:,\d{3})+|\d+)(?:[.,\s]?\s*(\d{2}))?$/;
  * Parses pages of the Warehouse Savings list in scroll order. Pages may overlap. When an offer
  * is split by a page break (its item number at the bottom of one page and its price and dates
  * at the top of the next, or its name at the bottom of one page and its item number at the
- * top of the next), the two halves are joined.
+ * top of the next), the two halves are joined. Text at the top of a page, above its first item
+ * number, only fills in fields the offer above is missing.
  */
 export function parseWarehouseSavings(pages: OcrElement[][]): ParsedSavings {
   let viewedOn: string | null = null;
@@ -87,15 +88,18 @@ export function parseWarehouseSavings(pages: OcrElement[][]): ParsedSavings {
     const page = readShot(shot);
     if (page.offers.length === 0) continue;
     const first = page.offers[0];
-    const last = previous?.offers[previous.offers.length - 1];
-    if (previous && last && last.itemNumber !== first.itemNumber) {
-      // The top of this page finishes the last offer of the previous page...
-      const known = byItem.get(last.itemNumber);
-      if (known) byItem.set(last.itemNumber, combine(known, { ...page.head, ...ids(last) }));
-      // ...and the bottom of the previous page has the name of this page's first offer.
-      // A page that repeats the whole name already starts with it.
-      const tail = previous.tailName;
-      if (tail && !first.name.startsWith(tail)) first.name = `${tail} ${first.name}`.trim();
+    // Map keeps insertion order, which is list order.
+    const order = [...byItem.keys()];
+    const seen = order.indexOf(first.itemNumber);
+    // The offer just above this page's first item number: its end is at the top of this page.
+    const above = seen > 0 ? order[seen - 1] : seen < 0 ? order[order.length - 1] : undefined;
+    const known = above === undefined ? undefined : byItem.get(above);
+    if (known) byItem.set(known.itemNumber, combine(known, { ...page.head, ...ids(known) }));
+    // A new first offer may have its name at the bottom of the previous page. A page that
+    // repeats the whole name already starts with it.
+    const tail = previous?.tailName;
+    if (seen < 0 && tail && !first.name.startsWith(tail)) {
+      first.name = `${tail} ${first.name}`.trim();
     }
     for (const offer of page.offers) {
       const known = byItem.get(offer.itemNumber);

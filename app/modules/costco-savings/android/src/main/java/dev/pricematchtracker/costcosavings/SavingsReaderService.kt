@@ -1,7 +1,9 @@
 package dev.pricematchtracker.costcosavings
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.Intent
+import android.graphics.Path
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -93,12 +95,64 @@ class SavingsReaderService : AccessibilityService() {
       return
     }
     val list = largestScrollable(root)
-    if (list == null || !list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
-      // Can't scroll any further: this was the last page.
+    if (list == null) {
       finish()
       return
     }
-    later(SCROLL_SETTLE_MS)
+    // Swipe half a screen so every line is whole on at least one page; a full-page scroll
+    // (ACTION_SCROLL_FORWARD) can skip the lines at the page break.
+    if (!swipeUp(list)) {
+      if (!list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
+        // Can't scroll any further: this was the last page.
+        finish()
+        return
+      }
+      later(SCROLL_SETTLE_MS)
+    }
+  }
+
+  /**
+   * Drags the list up by half its height, then holds still so it doesn't fling. Schedules the
+   * next tick when the gesture ends. False if the gesture couldn't be sent.
+   */
+  private fun swipeUp(list: AccessibilityNodeInfo): Boolean {
+    val bounds = Rect()
+    list.getBoundsInScreen(bounds)
+    if (bounds.height() < MIN_SWIPE_HEIGHT) return false
+    // Right of the product photos, on the offer text.
+    val x = bounds.left + bounds.width() * 0.7f
+    val from = bounds.top + bounds.height() * 0.75f
+    val to = bounds.top + bounds.height() * 0.25f
+    val drag = Path().apply {
+      moveTo(x, from)
+      lineTo(x, to)
+    }
+    val hold = Path().apply {
+      moveTo(x, to)
+      lineTo(x, to + 1f)
+    }
+    val dragStroke = GestureDescription.StrokeDescription(drag, 0, SWIPE_MS, true)
+    val holdStroke = dragStroke.continueStroke(hold, 0, HOLD_MS, false)
+    val gesture = GestureDescription.Builder().addStroke(dragStroke).build()
+    val run = runId
+    val sent =
+      dispatchGesture(
+        gesture,
+        object : GestureResultCallback() {
+          override fun onCompleted(description: GestureDescription?) {
+            if (run != runId) return
+            val release = GestureDescription.Builder().addStroke(holdStroke).build()
+            dispatchGesture(release, null, handler)
+            later(HOLD_MS + SCROLL_SETTLE_MS)
+          }
+
+          override fun onCancelled(description: GestureDescription?) {
+            if (run == runId) later(SCROLL_SETTLE_MS)
+          }
+        },
+        handler,
+      )
+    return sent
   }
 
   /** Taps Warehouse, then Warehouse Savings, the way the owner would. */
@@ -142,7 +196,10 @@ class SavingsReaderService : AccessibilityService() {
     private const val CLICK_GAP_MS = 2_000L
     private const val MAX_CLICKS = 6
     private const val MAX_PAGES = 120
-    private const val STALE_PAGES_TO_STOP = 2
+    private const val STALE_PAGES_TO_STOP = 3
+    private const val SWIPE_MS = 700L
+    private const val HOLD_MS = 250L
+    private const val MIN_SWIPE_HEIGHT = 200
     private const val MAX_NODES = 3_000
 
     private val ITEM = Regex("""^item\s*#?\s*(\d{3,9})$""", RegexOption.IGNORE_CASE)

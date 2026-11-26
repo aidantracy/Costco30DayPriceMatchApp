@@ -186,4 +186,33 @@ describe('parseWarehouseSavings', () => {
     // Without its cents a comma price is ambiguous, so it isn't guessed.
     expect(offer('$1,299')).toBeNull();
   });
+
+  it('gives the top of an overlapping page to the offer above it, not the last one read', () => {
+    const page1 = [
+      line('EXAMPLE ITEM ONE', 380, 100),
+      line('Item 1100041', 380, 160, 30),
+      line('$9.99', 380, 210, 56),
+      line('Valid Through Dec 1, 2026', 380, 380, 30),
+      line('EXAMPLE ITEM TWO', 380, 700),
+      line('Item 1100042', 380, 760, 30),
+      line('$5.99', 380, 810, 56),
+      line('Valid Through Dec 2, 2026', 380, 980, 30),
+      // Cut off: no price yet.
+      line('EXAMPLE ITEM THREE', 380, 1300),
+      line('Item 1100043', 380, 1360, 30),
+    ];
+    // Scrolled half a page: starts in the middle of offer two.
+    const page2 = [
+      line('Limit 3 per member', 380, 50, 30),
+      line('EXAMPLE ITEM THREE', 380, 200),
+      line('Item 1100043', 380, 260, 30),
+      line('$7.49', 380, 310, 56),
+      line('Valid Through Dec 3, 2026', 380, 480, 30),
+    ];
+    const result = parseWarehouseSavings([page1, page2]);
+    expect(result.incomplete).toEqual([]);
+    const byItem = (n: string) => result.offers.find((o) => o.itemNumber === n);
+    expect(byItem('1100042')?.limit).toBe(3);
+    expect(byItem('1100043')).toMatchObject({ priceCents: 749, limit: null });
+  });
 });
