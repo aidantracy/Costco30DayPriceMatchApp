@@ -107,4 +107,63 @@ describe('parseWarehouseSavings', () => {
     ];
     expect(parseWarehouseSavings([shot]).offers).toEqual([]);
   });
+
+  it('joins offers split by a page break with no overlap', () => {
+    const page1 = [
+      line('EXAMPLE ITEM ONE', 380, 100),
+      line('Item 1100011', 380, 160, 30),
+      line('$9.99', 380, 210, 56),
+      line('After $2 OFF', 380, 320),
+      line('Valid Through Dec 1, 2026', 380, 380, 30),
+      line('In Stock', 380, 445, 40),
+      // Item number at the very bottom; its price and dates are on the next page.
+      line('EXAMPLE ITEM TWO', 380, 2200),
+      line('Item 1100012', 380, 2260, 30),
+      // The next offer's name starts at the bottom edge.
+      line('EXAMPLE ITEM', 380, 2330),
+    ];
+    const page2 = [
+      line('$14 99', 380, 20, 56),
+      line('After $5 OFF', 380, 130),
+      line('Valid Through Dec 20, 2026', 380, 190, 30),
+      line('Limit 2 per member', 380, 255, 30),
+      line('THREE 2PK', 380, 330),
+      line('Item 1100013', 380, 390, 30),
+      line('$4.49', 380, 440, 56),
+      line('Valid Through Dec 7, 2026', 380, 550, 30),
+    ];
+    const result = parseWarehouseSavings([page1, page2]);
+    expect(result.incomplete).toEqual([]);
+    expect(result.offers.find((o) => o.itemNumber === '1100012')).toEqual({
+      itemNumber: '1100012',
+      name: 'EXAMPLE ITEM TWO',
+      priceCents: 1499,
+      discountCents: 500,
+      validThrough: '2026-12-20',
+      limit: 2,
+    });
+    expect(result.offers.find((o) => o.itemNumber === '1100013')?.name).toBe(
+      'EXAMPLE ITEM THREE 2PK',
+    );
+  });
+
+  it("doesn't change a finished offer with the next page's top", () => {
+    const page1 = [
+      line('EXAMPLE ITEM ONE', 380, 100),
+      line('Item 1100021', 380, 160, 30),
+      line('$9.99', 380, 210, 56),
+      line('Valid Through Dec 1, 2026', 380, 380, 30),
+    ];
+    const page2 = [
+      line('Limit 4 per member', 380, 20, 30),
+      line('EXAMPLE ITEM TWO', 380, 100),
+      line('Item 1100022', 380, 160, 30),
+      line('$5.99', 380, 210, 56),
+      line('Valid Through Dec 2, 2026', 380, 380, 30),
+    ];
+    const one = parseWarehouseSavings([page1, page2]).offers[0];
+    expect(one.priceCents).toBe(999);
+    // Only a missing field is filled in from the top of the next page.
+    expect(one.limit).toBe(4);
+  });
 });
