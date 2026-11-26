@@ -64,8 +64,9 @@ const AFTER = /after\s*\$\s*([\d,]+(?:\.\d{1,2})?)\s*off/i;
 const VALID = /valid\s*through\s+([a-z]{3})[a-z]*\.?\s*(\d{1,2}),?\s*(\d{4})/i;
 const VIEWED = /viewed\s*on\s+([a-z]{3})[a-z]*\.?\s*(\d{1,2}),?\s*(\d{4})/i;
 const LIMIT = /limit\s*(\d{1,3})\s*per\s*member/i;
-// "$12⁹⁹" comes out as "$1299", "$12 99", "$12.99" or "$12" with "99" as its own line.
-const PRICE = /^[$S]\s*(\d{1,3}(?:,\d{3})*|\d+)(?:[.,\s]\s*(\d{2}))?$/;
+// "$12⁹⁹" comes out as "$1299", "$12 99", "$12.99" or "$12" with "99" as its own line, and
+// "$1,299⁹⁹" as "$1,29999", "$1,299 99", "$1,299.99" or "$1,299" with "99" on its own.
+const PRICE = /^[$S]\s*(\d{1,3}(?:,\d{3})+|\d+)(?:[.,\s]?\s*(\d{2}))?$/;
 
 /**
  * Parses pages of the Warehouse Savings list in scroll order. Pages may overlap. When an offer
@@ -228,7 +229,8 @@ function price(line: Line, column: Line[]): number | null {
   );
   if (sup) return Number(digits) * 100 + Number(sup.text);
   // Cents are always shown, so run-together digits end with them ("$1299" is $12.99).
-  if (digits.length >= 3) return Number(digits);
+  // Except after a thousands comma: "$1,299" alone has lost its cents, so it's unreadable.
+  if (!whole.includes(',') && digits.length >= 3) return Number(digits);
   return null;
 }
 

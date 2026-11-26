@@ -166,4 +166,24 @@ describe('parseWarehouseSavings', () => {
     // Only a missing field is filled in from the top of the next page.
     expect(one.limit).toBe(4);
   });
+
+  it('reads prices of $1,000 and more however the cents come out', () => {
+    const offer = (price: string, sup?: string) => {
+      const shot = [
+        line('EXAMPLE GAMING LAPTOP', 380, 100),
+        line('Item 1100031', 380, 160, 30),
+        line(price, 380, 210, 56),
+        ...(sup ? [line(sup, 380 + price.length * 28 + 10, 208, 28)] : []),
+        line('Valid Through Dec 1, 2026', 380, 380, 30),
+      ];
+      return parseWarehouseSavings([shot]).offers[0]?.priceCents ?? null;
+    };
+    expect(offer('$1,29999')).toBe(129999);
+    expect(offer('$1,299 99')).toBe(129999);
+    expect(offer('$1,299.99')).toBe(129999);
+    expect(offer('$1,299', '99')).toBe(129999);
+    expect(offer('$129999')).toBe(129999);
+    // Without its cents a comma price is ambiguous, so it isn't guessed.
+    expect(offer('$1,299')).toBeNull();
+  });
 });
