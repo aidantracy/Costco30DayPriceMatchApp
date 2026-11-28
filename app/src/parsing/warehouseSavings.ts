@@ -16,7 +16,7 @@
  */
 import type { OcrElement } from './types';
 
-export const SAVINGS_PARSER_VERSION = 'warehouse-savings/1';
+export const SAVINGS_PARSER_VERSION = 'warehouse-savings/2';
 
 export interface SavingsOffer {
   itemNumber: string;
@@ -64,23 +64,48 @@ const AFTER = /after\s*\$\s*([\d,]+(?:\.\d{1,2})?)\s*off/i;
 const VALID = /valid\s*through\s+([a-z]{3})[a-z]*\.?\s*(\d{1,2}),?\s*(\d{4})/i;
 const VIEWED = /viewed\s*on\s+([a-z]{3})[a-z]*\.?\s*(\d{1,2}),?\s*(\d{4})/i;
 const LIMIT = /limit\s*(\d{1,3})\s*per\s*member/i;
-// "$12⁹⁹" comes out as "$1299", "$12 99", "$12.99" or "$12" with "99" as its own line.
-const PRICE = /^[$S]\s*(\d{1,3}(?:,\d{3})*|\d+)(?:[.,\s]\s*(\d{2}))?$/;
+// "$12⁹⁹" comes out as "$1299", "$12 99", "$12.99" or "$12" with "99" as its own line, and
+// "$1,299⁹⁹" as "$1,29999", "$1,299 99", "$1,299.99" or "$1,299" with "99" on its own.
+const PRICE = /^[$S]\s*(\d{1,3}(?:,\d{3})+|\d+)(?:[.,\s]?\s*(\d{2}))?$/;
 
-/** Parses one or more pages of the Warehouse Savings list, in any order. Pages may overlap. */
+/**
+ * Parses pages of the Warehouse Savings list in scroll order. Pages may overlap. When an offer
+ * is split by a page break (its item number at the bottom of one page and its price and dates
+ * at the top of the next, or its name at the bottom of one page and its item number at the
+ * top of the next), the two halves are joined. Text at the top of a page, above its first item
+ * number, only fills in fields the offer above is missing.
+ */
 export function parseWarehouseSavings(pages: OcrElement[][]): ParsedSavings {
   let viewedOn: string | null = null;
   const byItem = new Map<string, Draft>();
+  let previous: Page | null = null;
   for (const shot of pages) {
     for (const el of shot) {
       const m = VIEWED.exec(el.text);
       const date = m ? isoDate(m[1], m[2], m[3]) : null;
       if (date && (!viewedOn || date > viewedOn)) viewedOn = date;
     }
-    for (const offer of readShot(shot)) {
+    const page = readShot(shot);
+    if (page.offers.length === 0) continue;
+    const first = page.offers[0];
+    // Map keeps insertion order, which is list order.
+    const order = [...byItem.keys()];
+    const seen = order.indexOf(first.itemNumber);
+    // The offer just above this page's first item number: its end is at the top of this page.
+    const above = seen > 0 ? order[seen - 1] : seen < 0 ? order[order.length - 1] : undefined;
+    const known = above === undefined ? undefined : byItem.get(above);
+    if (known) byItem.set(known.itemNumber, combine(known, { ...page.head, ...ids(known) }));
+    // A new first offer may have its name at the bottom of the previous page. A page that
+    // repeats the whole name already starts with it.
+    const tail = previous?.tailName;
+    if (seen < 0 && tail && !first.name.startsWith(tail)) {
+      first.name = `${tail} ${first.name}`.trim();
+    }
+    for (const offer of page.offers) {
       const known = byItem.get(offer.itemNumber);
       byItem.set(offer.itemNumber, known ? combine(known, offer) : offer);
     }
+    previous = page;
   }
 
   const offers: SavingsOffer[] = [];
@@ -95,7 +120,21 @@ export function parseWarehouseSavings(pages: OcrElement[][]): ParsedSavings {
   return { parserVersion: SAVINGS_PARSER_VERSION, viewedOn, offers, incomplete };
 }
 
-function readShot(shot: OcrElement[]): Draft[] {
+interface Page {
+  offers: Draft[];
+  /** Fields above the first item number: the end of an offer from the previous page. */
+  head: Fields;
+  /** Capitalized lines at the very bottom: the name of an offer continued on the next page. */
+  tailName: string;
+}
+
+type Fields = Omit<Draft, 'itemNumber' | 'name'>;
+
+function ids(d: Draft): Pick<Draft, 'itemNumber' | 'name'> {
+  return { itemNumber: d.itemNumber, name: d.name };
+}
+
+function readShot(shot: OcrElement[]): Page {
   const lines: Line[] = shot
     .filter((e): e is Required<OcrElement> => e.frame !== undefined)
     .map((e) => ({ text: e.text.trim(), ...e.frame }))
@@ -103,14 +142,15 @@ function readShot(shot: OcrElement[]): Draft[] {
     .sort((a, b) => a.top - b.top || a.left - b.left);
 
   const anchors = lines.filter((l) => ITEM.test(l.text));
-  if (anchors.length === 0) return [];
+  const none = { priceCents: null, discountCents: null, validThrough: null, limit: null };
+  if (anchors.length === 0) return { offers: [], head: none, tailName: '' };
 
   // Text inside the product photos (left of the text column) is ignored.
   const columnLeft = Math.min(...anchors.map((a) => a.left));
   const slack = Math.max(...anchors.map((a) => a.bottom - a.top));
   const column = lines.filter((l) => l.left >= columnLeft - slack);
 
-  return anchors.map((anchor, i) => {
+  const offers = anchors.map((anchor, i) => {
     const next = anchors[i + 1];
     const after = column.filter(
       (l) => l.top > anchor.top && (next === undefined || l.top < next.top) && l !== anchor,
@@ -121,6 +161,22 @@ function readShot(shot: OcrElement[]): Draft[] {
       ...fields(after, column),
     };
   });
+
+  const lastAnchor = anchors[anchors.length - 1];
+  const below = column.filter((l) => l.top > lastAnchor.top);
+  const tail: string[] = [];
+  for (const l of [...below].reverse()) {
+    if (!isCapitalized(l.text) || isField(l.text)) break;
+    tail.unshift(l.text);
+  }
+  return {
+    offers,
+    head: fields(
+      column.filter((l) => l.top < anchors[0].top),
+      column,
+    ),
+    tailName: tail.slice(-3).join(' '),
+  };
 }
 
 /** The capitalized lines right above an item number; notes and headers are mixed case. */
@@ -145,7 +201,7 @@ function isField(text: string): boolean {
   return [ITEM, AFTER, VALID, LIMIT, PRICE].some((re) => re.test(text));
 }
 
-function fields(lines: Line[], column: Line[]): Omit<Draft, 'itemNumber' | 'name'> {
+function fields(lines: Line[], column: Line[]): Fields {
   let priceCents: number | null = null;
   let discountCents: number | null = null;
   let validThrough: string | null = null;
@@ -177,7 +233,8 @@ function price(line: Line, column: Line[]): number | null {
   );
   if (sup) return Number(digits) * 100 + Number(sup.text);
   // Cents are always shown, so run-together digits end with them ("$1299" is $12.99).
-  if (digits.length >= 3) return Number(digits);
+  // Except after a thousands comma: "$1,299" alone has lost its cents, so it's unreadable.
+  if (!whole.includes(',') && digits.length >= 3) return Number(digits);
   return null;
 }
 

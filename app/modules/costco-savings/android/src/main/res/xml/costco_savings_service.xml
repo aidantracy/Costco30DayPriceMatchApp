@@ -3,8 +3,8 @@
   android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
   android:accessibilityFeedbackType="feedbackGeneric"
   android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"
-  android:canPerformGestures="false"
+  android:canPerformGestures="true"
   android:canRetrieveWindowContent="true"
   android:description="@string/costco_savings_service_description"
-  android:notificationTimeout="300"
+  android:notificationTimeout="100"
   android:packageNames="com.costco.app.android" />

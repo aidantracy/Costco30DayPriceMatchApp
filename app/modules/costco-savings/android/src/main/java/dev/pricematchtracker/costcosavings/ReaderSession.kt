@@ -24,8 +24,11 @@ internal object ReaderSession {
     CANCELLED("cancelled"),
   }
 
-  /** A reading stops on its own after this long, so the service can't be left active. */
-  const val TIMEOUT_MS = 3 * 60 * 1000L
+  /** A reading stops on its own when it finds nothing new for this long... */
+  const val IDLE_TIMEOUT_MS = 90 * 1000L
+
+  /** ...or after this long in all, so the service can't be left active. */
+  const val MAX_MS = 8 * 60 * 1000L
 
   @Volatile var state = State.IDLE
     private set
@@ -41,6 +44,8 @@ internal object ReaderSession {
 
   @Volatile private var startedAt = 0L
 
+  @Volatile private var progressAt = 0L
+
   private val pages = mutableListOf<List<TextLine>>()
 
   @Synchronized
@@ -49,11 +54,18 @@ internal object ReaderSession {
     error = ""
     step = "opening"
     startedAt = now
+    progressAt = now
     runId += 1
     state = State.RUNNING
   }
 
-  fun isActive(now: Long): Boolean = state == State.RUNNING && now - startedAt < TIMEOUT_MS
+  fun isActive(now: Long): Boolean =
+    state == State.RUNNING && now - progressAt < IDLE_TIMEOUT_MS && now - startedAt < MAX_MS
+
+  /** New offers were read: keep going. */
+  fun progress(now: Long) {
+    progressAt = now
+  }
 
   @Synchronized
   fun addPage(page: List<TextLine>) {

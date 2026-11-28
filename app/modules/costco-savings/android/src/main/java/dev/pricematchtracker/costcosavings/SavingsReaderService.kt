@@ -1,7 +1,9 @@
 package dev.pricematchtracker.costcosavings
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.Intent
+import android.graphics.Path
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -25,8 +27,10 @@ class SavingsReaderService : AccessibilityService() {
   private var hinted = false
   private var stalePages = 0
   private val seenItems = mutableSetOf<String>()
+  @Volatile private var lastEventAt = 0L
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+    lastEventAt = System.currentTimeMillis()
     if (ticking || ReaderSession.state != ReaderSession.State.RUNNING) return
     if (runId != ReaderSession.runId) startRun()
     ticking = true
@@ -53,11 +57,12 @@ class SavingsReaderService : AccessibilityService() {
       return
     }
     if (!ReaderSession.isActive(now)) {
-      ReaderSession.fail(
-        if (ReaderSession.pageCount() == 0) "Couldn't find Warehouse Savings in the Costco app."
-        else "Reading took too long."
-      )
-      stop()
+      // Out of time: keep what was read so the owner can still check and save it.
+      if (ReaderSession.pageCount() > 0) finish()
+      else {
+        ReaderSession.fail("Couldn't find Warehouse Savings in the Costco app.")
+        stop()
+      }
       return
     }
 
@@ -87,18 +92,83 @@ class SavingsReaderService : AccessibilityService() {
       if (seenItems.add(item)) fresh += 1
     }
     stalePages = if (fresh == 0) stalePages + 1 else 0
+    if (fresh > 0) ReaderSession.progress(System.currentTimeMillis())
 
     if (stalePages >= STALE_PAGES_TO_STOP || ReaderSession.pageCount() >= MAX_PAGES) {
       finish()
       return
     }
     val list = largestScrollable(root)
-    if (list == null || !list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
-      // Can't scroll any further: this was the last page.
+    if (list == null) {
       finish()
       return
     }
-    later(SCROLL_SETTLE_MS)
+    // Swipe most of a screen, leaving an overlap so every line is whole on at least one page;
+    // a full-page scroll (ACTION_SCROLL_FORWARD) can skip the lines at the page break.
+    if (!swipeUp(list)) {
+      if (!list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
+        // Can't scroll any further: this was the last page.
+        finish()
+        return
+      }
+      afterScroll()
+    }
+  }
+
+  /** Reads the next page as soon as the list stops changing, instead of a fixed wait. */
+  private fun afterScroll() {
+    val start = System.currentTimeMillis()
+    fun check() {
+      if (runId != ReaderSession.runId) return
+      val now = System.currentTimeMillis()
+      if (now - lastEventAt >= QUIET_MS || now - start >= MAX_SETTLE_MS) tick()
+      else handler.postDelayed({ check() }, POLL_MS)
+    }
+    handler.postDelayed({ check() }, POLL_MS)
+  }
+
+  /**
+   * Drags the list up by most of its height, then holds still so it doesn't fling. Schedules the
+   * next tick when the gesture ends. False if the gesture couldn't be sent.
+   */
+  private fun swipeUp(list: AccessibilityNodeInfo): Boolean {
+    val bounds = Rect()
+    list.getBoundsInScreen(bounds)
+    if (bounds.height() < MIN_SWIPE_HEIGHT) return false
+    // Right of the product photos, on the offer text.
+    val x = bounds.left + bounds.width() * 0.7f
+    val from = bounds.top + bounds.height() * SWIPE_FROM
+    val to = bounds.top + bounds.height() * SWIPE_TO
+    val drag = Path().apply {
+      moveTo(x, from)
+      lineTo(x, to)
+    }
+    val hold = Path().apply {
+      moveTo(x, to)
+      lineTo(x, to + 1f)
+    }
+    val dragStroke = GestureDescription.StrokeDescription(drag, 0, SWIPE_MS, true)
+    val holdStroke = dragStroke.continueStroke(hold, 0, HOLD_MS, false)
+    val gesture = GestureDescription.Builder().addStroke(dragStroke).build()
+    val run = runId
+    val sent =
+      dispatchGesture(
+        gesture,
+        object : GestureResultCallback() {
+          override fun onCompleted(description: GestureDescription?) {
+            if (run != runId) return
+            val release = GestureDescription.Builder().addStroke(holdStroke).build()
+            dispatchGesture(release, null, handler)
+            handler.postDelayed({ afterScroll() }, HOLD_MS)
+          }
+
+          override fun onCancelled(description: GestureDescription?) {
+            if (run == runId) afterScroll()
+          }
+        },
+        handler,
+      )
+    return sent
   }
 
   /** Taps Warehouse, then Warehouse Savings, the way the owner would. */
@@ -138,11 +208,20 @@ class SavingsReaderService : AccessibilityService() {
   companion object {
     private const val FIRST_TICK_MS = 800L
     private const val TICK_MS = 900L
-    private const val SCROLL_SETTLE_MS = 1_000L
     private const val CLICK_GAP_MS = 2_000L
     private const val MAX_CLICKS = 6
-    private const val MAX_PAGES = 120
+    private const val MAX_PAGES = 400
     private const val STALE_PAGES_TO_STOP = 2
+    // Drag from 88% to 18% of the list: 70% of a screen per step, 30% overlap.
+    private const val SWIPE_FROM = 0.88f
+    private const val SWIPE_TO = 0.18f
+    private const val SWIPE_MS = 300L
+    private const val HOLD_MS = 100L
+    // The list has settled when no change has been reported for this long.
+    private const val QUIET_MS = 150L
+    private const val MAX_SETTLE_MS = 1_000L
+    private const val POLL_MS = 50L
+    private const val MIN_SWIPE_HEIGHT = 200
     private const val MAX_NODES = 3_000
 
     private val ITEM = Regex("""^item\s*#?\s*(\d{3,9})$""", RegexOption.IGNORE_CASE)

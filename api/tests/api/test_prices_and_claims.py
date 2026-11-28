@@ -235,3 +235,28 @@ def test_price_batch_rejects_future_dates_and_empty_lists(client: TestClient, au
     assert client.post("/prices/batch", json=future, headers=auth).status_code == 422
     assert client.post("/prices/batch", json={"prices": []}, headers=auth).status_code == 422
     assert client.post("/prices/batch", json={"prices": [price()]}).status_code == 401
+
+
+def test_price_batch_of_500_uses_a_few_queries(
+    client: TestClient, auth: H, session: Session
+) -> None:
+    from sqlalchemy import event
+
+    client.post("/purchases/batch", json=batch(), headers=auth)
+    prices = [price(item_number=str(3000000 + i), price_cents=999) for i in range(499)]
+    prices.append(price())
+    statements: list[str] = []
+    engine = session.get_bind()
+
+    def count(*args: object) -> None:
+        statements.append(str(args[2]))
+
+    event.listen(engine, "before_cursor_execute", count)
+    try:
+        out = client.post("/prices/batch", json={"prices": prices}, headers=auth).json()
+    finally:
+        event.remove(engine, "before_cursor_execute", count)
+    assert out["recorded"] == 500
+    assert [f["refund_due_cents"] for f in out["flagged"]] == [500]
+    # Not several queries per price: the old version ran about 1,500 here.
+    assert 0 < len(statements) < 60
