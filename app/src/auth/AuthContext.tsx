@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { createApiClient, type ApiClient } from '../api/client';
 import { API_URL } from '../config';
+import { clearDropAlerts } from '../prices/dropAlerts';
 import { secureTokenStore, type TokenStore } from './tokenStore';
 
 type Status = 'loading' | 'signedOut' | 'signedIn';
@@ -55,6 +56,7 @@ export function AuthProvider(props: {
       },
       async signOut() {
         await api.logout();
+        await clearDropAlerts();
         setStatus('signedOut');
       },
     }),

@@ -14,6 +14,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useAuth } from '../auth/AuthContext';
 import { todayIso } from '../dates';
 import { formatCents } from '../money';
+import { refreshDropAlerts } from './dropAlerts';
 import { runPriceCheck, type Outcome, type PageRead } from './runner';
 
 /** How long to wait for one product page before moving on. */
@@ -100,6 +101,7 @@ export function PriceCheckProvider(props: { children: ReactNode; pauseMs?: numbe
           onProgress: (done, total) => setStatus({ state: 'running', done, total }),
         });
         setStatus({ state: 'idle', last: outcome, finishedOn: today });
+        void refreshDropAlerts(api);
         if ((outcome.kind === 'done' || outcome.kind === 'blocked') && outcome.flagged.length) {
           Alert.alert(
             outcome.flagged.length === 1
@@ -123,15 +125,21 @@ export function PriceCheckProvider(props: { children: ReactNode; pauseMs?: numbe
 
   // Check once a day: when signed in, and whenever the app comes back to the foreground.
   useEffect(() => {
-    const first = setTimeout(() => void run(), 0);
+    // Also keep drop alerts and claim reminders in step with the server.
+    const first = setTimeout(() => {
+      void run();
+      void refreshDropAlerts(api);
+    }, 0);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void run();
+      if (state !== 'active') return;
+      void run();
+      void refreshDropAlerts(api);
     });
     return () => {
       clearTimeout(first);
       sub.remove();
     };
-  }, [run]);
+  }, [run, api]);
 
   const value = useMemo(() => ({ status, run }), [status, run]);
 

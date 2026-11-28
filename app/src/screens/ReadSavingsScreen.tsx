@@ -17,6 +17,7 @@ import { currentOffers, readSavingsPages, seenOn, toPrices } from '../import/sav
 import { formatCents } from '../money';
 import type { DropsStackParams } from '../navigation';
 import type { ParsedSavings, SavingsOffer } from '../parsing/warehouseSavings';
+import { refreshDropAlerts } from '../prices/dropAlerts';
 import { canRead, savingsReader, type ReaderStatus } from '../prices/savingsReader';
 import { scheduleSavingsReminder } from '../prices/savingsReminder';
 import { Button, Card, ErrorText, Message } from '../ui/components';
@@ -107,6 +108,7 @@ export function ReadSavingsScreen({ navigation, route }: Props) {
     try {
       const result = await api.recordPrices(toPrices(parsed, offers, todayIso()), setSaved);
       savingsReader.clear();
+      void refreshDropAlerts(api);
       const parts = [`Saved ${result.recorded} price${result.recorded === 1 ? '' : 's'}.`];
       if (result.duplicates) parts.push(`${result.duplicates} were already saved.`);
       if (result.flagged.length === 0) {

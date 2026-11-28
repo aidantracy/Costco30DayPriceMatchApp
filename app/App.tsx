@@ -4,12 +4,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { PriceCheckProvider } from './src/prices/PriceCheckProvider';
 import type { DropsStackParams, PurchasesStackParams, RootTabParams } from './src/navigation';
+import { dropFlagId } from './src/prices/dropAlerts';
 import { isSavingsReminder } from './src/prices/savingsReminder';
 import { AddPurchaseScreen } from './src/screens/AddPurchaseScreen';
 import { ChooseWarehouseScreen } from './src/screens/ChooseWarehouseScreen';
@@ -27,22 +28,29 @@ const DropsStack = createNativeStackNavigator<DropsStackParams>();
 const Tabs = createBottomTabNavigator<RootTabParams>();
 const navigationRef = createNavigationContainerRef<RootTabParams>();
 
-// Show the reminder even if it fires while the app is open.
+// Show reminders even while the app is open. A price drop found while the app is open is
+// already shown in the app, so it only goes to the notification list then.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
+  handleNotification: async (n) => ({
+    shouldShowBanner: !(
+      AppState.currentState === 'active' && n.request.content.data?.screen === 'ClaimCard'
+    ),
     shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
 });
 
-/** Opens the Warehouse Savings reader when its reminder notification is tapped. */
+/**
+ * Opens the right screen for a tapped notification: the claim card for a price drop, or the
+ * Warehouse Savings reader (starting a reading) for its reminder.
+ */
 function useReminderLinks() {
   const response = Notifications.useLastNotificationResponse();
   const handled = useRef<string | null>(null);
   useEffect(() => {
-    if (!response || !isSavingsReminder(response)) return;
+    const flagId = dropFlagId(response);
+    if (!response || (!flagId && !isSavingsReminder(response))) return;
     const key = `${response.notification.request.identifier}:${response.notification.date}`;
     if (handled.current === key) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -52,7 +60,10 @@ function useReminderLinks() {
         return;
       }
       handled.current = key;
-      navigationRef.navigate('DropsTab', { screen: 'ReadSavings', params: { autoStart: true } });
+      if (flagId) navigationRef.navigate('DropsTab', { screen: 'ClaimCard', params: { flagId } });
+      else {
+        navigationRef.navigate('DropsTab', { screen: 'ReadSavings', params: { autoStart: true } });
+      }
     };
     open();
     return () => clearTimeout(timer);
