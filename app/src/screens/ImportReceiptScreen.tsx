@@ -8,6 +8,7 @@ import { shortDate, todayIso } from '../dates';
 import { canRecognize, recognize } from '../import/recognize';
 import { problems, readScreenshots, recheck, toBatch, withPrice } from '../import/receipt';
 import { formatCents, parseDollars } from '../money';
+import { refreshDropAlerts } from '../prices/dropAlerts';
 import type { PurchasesStackParams } from '../navigation';
 import type { ParsedReceipt, ReceiptItem } from '../parsing/types';
 import { Button, Card, ErrorText, Field, Message } from '../ui/components';
@@ -138,6 +139,7 @@ export function ImportReceiptScreen({ navigation }: Props) {
     setError(null);
     try {
       const result = await api.importReceipts(body);
+      void refreshDropAlerts(api);
       const parts = [`Added ${result.created} item${result.created === 1 ? '' : 's'}.`];
       if (result.duplicates) parts.push(`${result.duplicates} were already saved.`);
       for (const d of result.already_cheaper) {

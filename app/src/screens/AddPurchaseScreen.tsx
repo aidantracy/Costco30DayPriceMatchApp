@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext';
 import { shortDate, todayIso } from '../dates';
 import { formatCents } from '../money';
 import type { PurchasesStackParams } from '../navigation';
+import { refreshDropAlerts } from '../prices/dropAlerts';
 import { emptyForm, validatePurchase, type FormErrors, type PurchaseForm } from '../purchases/form';
 import { Button, ErrorText, Field } from '../ui/components';
 import { colors, space } from '../ui/theme';
@@ -30,6 +31,7 @@ export function AddPurchaseScreen({ navigation }: Props) {
     try {
       const result = await api.addPurchase(body);
       const drop = result.already_cheaper;
+      if (drop) void refreshDropAlerts(api);
       if (drop) {
         Alert.alert(
           "It's already cheaper",

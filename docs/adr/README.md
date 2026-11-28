@@ -12,3 +12,4 @@ Each record captures one significant design decision: the context, the decision,
 | [0006](0006-receipt-screenshots-on-device-ocr.md) | Import receipt screenshots with on-device text recognition | Accepted |
 | [0007](0007-price-checks-on-the-phone.md) | Run price checks on the phone, in an in-app browser view | Accepted |
 | [0008](0008-read-warehouse-savings-with-accessibility.md) | Read Warehouse Savings from the Costco app with an accessibility service | Accepted |
+| [0009](0009-price-drop-alerts-as-local-notifications.md) | Price-drop alerts as local notifications on the phone | Accepted |
