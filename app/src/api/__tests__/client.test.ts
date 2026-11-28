@@ -288,7 +288,7 @@ test('recordPrices posts a batch of prices', async () => {
   });
 });
 
-test('recordPrices splits long lists into requests of 500', async () => {
+test('recordPrices splits long lists into requests of 100', async () => {
   let n = 0;
   const { api, calls } = setup(
     {
@@ -320,10 +320,14 @@ test('recordPrices splits long lists into requests of 500', async () => {
     price_cents: 999,
     seen_on: '2026-10-01',
   }));
-  const result = await api.recordPrices(prices);
+  const progress: number[] = [];
+  const result = await api.recordPrices(prices, (done) => progress.push(done));
   const posts = calls.filter((c) => c.path === '/prices/batch');
-  expect(posts.map((c) => (c.body as { prices: unknown[] }).prices.length)).toEqual([500, 78]);
-  expect(result.recorded).toBe(577);
+  expect(posts.map((c) => (c.body as { prices: unknown[] }).prices.length)).toEqual([
+    100, 100, 100, 100, 100, 78,
+  ]);
+  expect(progress).toEqual([100, 200, 300, 400, 500, 578]);
+  expect(result.recorded).toBe(499 + 5 * 78);
   expect(result.duplicates).toBe(1);
   expect(result.flagged.map((f) => f.id)).toEqual(['f2']);
 });

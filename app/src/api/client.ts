@@ -34,8 +34,11 @@ export interface ClientOptions {
  * Talks to the backend. The access token is kept in memory; the refresh token is in
  * secure storage. A 401 triggers one refresh (shared by concurrent requests) and a retry.
  */
-/** Matches MAX_PRICES_PER_BATCH in the API. */
-const PRICES_PER_REQUEST = 500;
+/**
+ * Prices per request. The API takes up to 500, but smaller parts finish well within the
+ * request timeout and let the app show progress.
+ */
+const PRICES_PER_REQUEST = 100;
 
 export function createApiClient(options: ClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/+$/, '');
@@ -159,8 +162,11 @@ export function createApiClient(options: ClientOptions) {
       request<Flag>('PATCH', `/flags/${encodeURIComponent(flagId)}`, body),
     savings: () => request<Savings>('GET', '/savings'),
     /** Many prices at once, such as a Warehouse Savings list. Repeats are skipped. */
-    // The API takes at most 500 prices per request, so longer lists go in several.
-    recordPrices: async (prices: PriceIn[]): Promise<PriceBatchOut> => {
+    /** Saves prices in parts, calling onProgress with how many are done after each part. */
+    recordPrices: async (
+      prices: PriceIn[],
+      onProgress?: (done: number) => void,
+    ): Promise<PriceBatchOut> => {
       const total: PriceBatchOut = { recorded: 0, duplicates: 0, flagged: [] };
       for (let i = 0; i < prices.length; i += PRICES_PER_REQUEST) {
         const part = await request<PriceBatchOut>('POST', '/prices/batch', {
@@ -174,6 +180,7 @@ export function createApiClient(options: ClientOptions) {
           ...total.flagged.filter((f) => !replaced.has(f.purchase_id)),
           ...part.flagged,
         ];
+        onProgress?.(Math.min(i + PRICES_PER_REQUEST, prices.length));
       }
       return total;
     },

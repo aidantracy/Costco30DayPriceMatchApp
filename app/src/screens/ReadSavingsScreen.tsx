@@ -1,7 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, AppState, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  AppState,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type ScrollViewInstance,
+} from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
 import { shortDate, todayIso } from '../dates';
@@ -33,6 +41,7 @@ export function ReadSavingsScreen({ navigation, route }: Props) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(0);
 
   const refresh = useCallback(() => {
     if (!canRead()) return;
@@ -94,8 +103,9 @@ export function ReadSavingsScreen({ navigation, route }: Props) {
   async function save(parsed: ParsedSavings, offers: SavingsOffer[]) {
     setBusy(true);
     setError(null);
+    setSaved(0);
     try {
-      const result = await api.recordPrices(toPrices(parsed, offers, todayIso()));
+      const result = await api.recordPrices(toPrices(parsed, offers, todayIso()), setSaved);
       savingsReader.clear();
       const parts = [`Saved ${result.recorded} price${result.recorded === 1 ? '' : 's'}.`];
       if (result.duplicates) parts.push(`${result.duplicates} were already saved.`);
@@ -182,6 +192,7 @@ export function ReadSavingsScreen({ navigation, route }: Props) {
         status={status}
         savings={savings}
         busy={busy}
+        saved={saved}
         error={error}
         onSave={save}
         onAgain={start}
@@ -218,6 +229,8 @@ function Review(props: {
   status: ReaderStatus;
   savings: ParsedSavings;
   busy: boolean;
+  /** Prices saved so far while saving. */
+  saved: number;
   error: string | null;
   onSave: (savings: ParsedSavings, offers: SavingsOffer[]) => void;
   onAgain: () => void;
@@ -226,18 +239,29 @@ function Review(props: {
   const today = todayIso();
   const offers = currentOffers(savings, today);
   const ended = savings.offers.length - offers.length;
-  // At the top and the bottom, so a long list needn't be scrolled first.
+  const scroll = useRef<ScrollViewInstance>(null);
+  // At the top and the bottom, with progress and errors, so a long list needn't be scrolled.
   const saveButton =
     offers.length > 0 ? (
-      <Button
-        title={`Save ${offers.length} price${offers.length === 1 ? '' : 's'}`}
-        busy={props.busy}
-        onPress={() => props.onSave(savings, offers)}
-      />
-    ) : null;
+      <>
+        {props.busy ? (
+          <Text style={styles.note}>
+            Saving {props.saved} of {offers.length}…
+          </Text>
+        ) : null}
+        <ErrorText>{props.error}</ErrorText>
+        <Button
+          title={`Save ${offers.length} price${offers.length === 1 ? '' : 's'}`}
+          busy={props.busy}
+          onPress={() => props.onSave(savings, offers)}
+        />
+      </>
+    ) : (
+      <ErrorText>{props.error}</ErrorText>
+    );
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
+    <ScrollView ref={scroll} style={styles.flex} contentContainerStyle={styles.container}>
       <Card>
         <Text style={styles.title}>
           {offers.length} offer{offers.length === 1 ? '' : 's'} · seen{' '}
@@ -259,6 +283,13 @@ function Review(props: {
         ) : null}
       </Card>
       {saveButton}
+      {offers.length > 5 ? (
+        <Button
+          title="Jump to bottom"
+          variant="secondary"
+          onPress={() => scroll.current?.scrollToEnd({ animated: false })}
+        />
+      ) : null}
 
       {offers.map((o) => (
         <View key={o.itemNumber} style={styles.row}>
@@ -301,9 +332,15 @@ function Review(props: {
         </Card>
       ) : null}
 
-      <ErrorText>{props.error}</ErrorText>
       {saveButton}
       <Button title="Read again" variant="secondary" onPress={props.onAgain} />
+      {offers.length > 5 ? (
+        <Button
+          title="Back to top"
+          variant="secondary"
+          onPress={() => scroll.current?.scrollTo({ y: 0, animated: false })}
+        />
+      ) : null}
     </ScrollView>
   );
 }

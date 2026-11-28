@@ -148,8 +148,10 @@ test('reads the list, shows the offers and saves the prices', async () => {
   expect(screen.getByText('SAMPLE BRAND DARK CHOCOLATE 16 OZ')).toBeTruthy();
   expect(screen.getByText('EXAMPLE PARTY CUPS 140/18 OZ (#1100007)')).toBeTruthy();
 
-  // The save button is at the top and the bottom of the list.
+  // The save button is at the top and the bottom of the list, with jump buttons.
   expect(screen.getAllByRole('button', { name: 'Save 6 prices' })).toHaveLength(2);
+  expect(screen.getByRole('button', { name: 'Jump to bottom' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Back to top' })).toBeTruthy();
 
   jest.useRealTimers();
   await fireEvent.press(screen.getAllByRole('button', { name: 'Save 6 prices' })[0]);
